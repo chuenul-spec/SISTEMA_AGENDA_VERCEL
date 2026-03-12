@@ -382,7 +382,7 @@ export default function AgendaMedica() {
     cabecera.fechaInicio && cabecera.fechaTermino;
 
   const semActualObj = semanas.find(s => s.num === semanaActual);
-  const diasDisp = semActualObj ? diasDisponibles(semanaActual) : DIAS;
+  const diasDisp = vistaCalendario === "mensual" ? DIAS : (semActualObj ? diasDisponibles(semanaActual) : DIAS);
 
   // ── Componente resumen de cupos ─────────────────────────────────────────
   function ResumenCupos({ compact = false }) {

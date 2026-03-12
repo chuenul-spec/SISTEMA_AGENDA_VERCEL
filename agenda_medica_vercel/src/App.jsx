@@ -187,11 +187,35 @@ export default function AgendaMedica() {
 
   const semanas = useMemo(() => {
     if (!cabecera.fechaInicio || !cabecera.fechaTermino) return [1, 2, 3, 4, 5];
-    const start = new Date(cabecera.fechaInicio);
-    const end = new Date(cabecera.fechaTermino);
-    const diffMs = end - start;
-    const weeks = Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
-    return Array.from({ length: Math.max(1, Math.min(weeks, 52)) }, (_, i) => i + 1);
+    const start = new Date(cabecera.fechaInicio + "T00:00:00");
+    const end = new Date(cabecera.fechaTermino + "T00:00:00");
+    if (end < start) return [1];
+    // Calcular número de semana ISO para inicio y fin
+    const getISOWeek = (d) => {
+      const tmp = new Date(d.getTime());
+      tmp.setHours(0, 0, 0, 0);
+      // Jueves de la semana actual (referencia ISO)
+      tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+      const week1 = new Date(tmp.getFullYear(), 0, 4);
+      return 1 + Math.round(((tmp - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+    };
+    // Contar cuántos lunes distintos hay entre inicio y fin (semanas calendario)
+    const getLunes = (d) => {
+      const tmp = new Date(d.getTime());
+      const day = tmp.getDay(); // 0=dom, 1=lun...
+      const diff = (day === 0) ? -6 : 1 - day;
+      tmp.setDate(tmp.getDate() + diff);
+      tmp.setHours(0, 0, 0, 0);
+      return tmp;
+    };
+    let lunesInicio = getLunes(start);
+    const lunesFin = getLunes(end);
+    let count = 1;
+    while (lunesInicio < lunesFin) {
+      lunesInicio.setDate(lunesInicio.getDate() + 7);
+      count++;
+    }
+    return Array.from({ length: Math.min(count, 52) }, (_, i) => i + 1);
   }, [cabecera.fechaInicio, cabecera.fechaTermino]);
 
   const bloquesEnVista = useMemo(() => {

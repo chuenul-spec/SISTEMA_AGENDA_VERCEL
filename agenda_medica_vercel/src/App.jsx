@@ -8059,6 +8059,78 @@ export default function AgendaMedica() {
   const [modalCopiar, setModalCopiar] = useState(false);
   const pdfRef = useRef(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  // ── XML export/import ─────────────────────────────────────────────────
+  const [xmlCargando, setXmlCargando] = useState(false);
+  const [errorXml, setErrorXml] = useState("");
+  const xmlInputRef = useRef(null);
+
+  function generarXML() {
+    const esc = s => String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    const bloquesXml = bloques.map(b =>
+      `    <bloque dia="${esc(b.dia)}" horaInicio="${esc(b.horaInicio)}" semana="${b.semana ?? ""}" tipoCupo="${esc(b.tipoCupo)}" cantidad="${b.cantidad}" intervalo="${b.intervalo}"/>`
+    ).join("\n");
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<agenda>\n  <cabecera\n    codigoRecurso="${esc(cabecera.codigoRecurso)}"\n    codigoAgenda="${esc(cabecera.codigoAgenda)}"\n    nombreProfesional="${esc(cabecera.nombreProfesional)}"\n    nombreAgenda="${esc(cabecera.nombreAgenda)}"\n    especialidad="${esc(cabecera.especialidad)}"\n    fechaInicio="${esc(cabecera.fechaInicio)}"\n    fechaTermino="${esc(cabecera.fechaTermino)}"\n    escalonada="${esc(cabecera.escalonada)}"\n    modalidadFinanciamiento="${esc(cabecera.modalidadFinanciamiento)}"\n    requiereFicha="${esc(cabecera.requiereFicha)}"\n    permiteVariasHoras="${esc(cabecera.permiteVariasHoras)}"\n    comentarioGeneral="${esc(cabecera.comentarioGeneral)}"\n  />\n  <bloques>\n${bloquesXml}\n  </bloques>\n</agenda>`;
+  }
+
+  function descargarXML(xmlStr) {
+    const blob = new Blob([xmlStr], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `agenda_${cabecera.codigoAgenda || "medica"}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function cargarDesdeXML(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErrorXml("");
+    setXmlCargando(true);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(ev.target.result, "application/xml");
+        if (doc.querySelector("parsererror")) throw new Error("XML malformado");
+        const cab = doc.querySelector("cabecera");
+        if (!cab) throw new Error("Falta nodo cabecera");
+        const getAttr = (node, name) => node.getAttribute(name) || "";
+        const nuevaCabecera = {
+          codigoRecurso: getAttr(cab,"codigoRecurso"),
+          codigoAgenda: getAttr(cab,"codigoAgenda"),
+          nombreProfesional: getAttr(cab,"nombreProfesional"),
+          nombreAgenda: getAttr(cab,"nombreAgenda"),
+          especialidad: getAttr(cab,"especialidad"),
+          fechaInicio: getAttr(cab,"fechaInicio"),
+          fechaTermino: getAttr(cab,"fechaTermino"),
+          escalonada: getAttr(cab,"escalonada") || "SI",
+          modalidadFinanciamiento: getAttr(cab,"modalidadFinanciamiento") || "INSTITUCIONAL",
+          requiereFicha: getAttr(cab,"requiereFicha") || "SI",
+          permiteVariasHoras: getAttr(cab,"permiteVariasHoras") || "NO",
+          comentarioGeneral: getAttr(cab,"comentarioGeneral"),
+        };
+        const nuevoBloques = [...doc.querySelectorAll("bloque")].map(b => ({
+          dia: getAttr(b,"dia"),
+          horaInicio: getAttr(b,"horaInicio"),
+          semana: getAttr(b,"semana") ? Number(getAttr(b,"semana")) : null,
+          tipoCupo: getAttr(b,"tipoCupo"),
+          cantidad: Number(getAttr(b,"cantidad")) || 1,
+          intervalo: Number(getAttr(b,"intervalo")) || 15,
+        }));
+        setCabecera(nuevaCabecera);
+        setBloques(nuevoBloques);
+        setSemanaActual(1);
+        setStep(1);
+      } catch(err) {
+        setErrorXml("No se pudo leer el archivo. Asegúrate de que sea un archivo de agenda .xml válido.");
+      } finally {
+        setXmlCargando(false);
+        if (xmlInputRef.current) xmlInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  }
 
   useEffect(() => {
     if (!window.html2pdf) {
@@ -8252,12 +8324,32 @@ export default function AgendaMedica() {
     if (!pdfRef.current) return;
     setGenerandoPDF(true);
     try {
-      await window.html2pdf().set({
-        margin: 10, filename: `agenda_${cabecera.codigoAgenda || "medica"}.pdf`,
+      // Generate PDF with page numbers using jsPDF callback
+      const filename = `agenda_${cabecera.codigoAgenda || "medica"}.pdf`;
+      const worker = window.html2pdf().set({
+        margin: 10,
+        filename,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
-      }).from(pdfRef.current).save();
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      }).from(pdfRef.current);
+
+      // Get jsPDF instance to add page numbers
+      const pdf = await worker.toPdf().get("pdf");
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150);
+        const pw = pdf.internal.pageSize.getWidth();
+        const ph = pdf.internal.pageSize.getHeight();
+        pdf.text(`Página ${i} de ${totalPages}`, pw - 10, ph - 5, { align: "right" });
+      }
+      pdf.save(filename);
+
+      // Also download XML
+      descargarXML(generarXML());
     } finally { setGenerandoPDF(false); }
   }
 
@@ -8334,6 +8426,9 @@ export default function AgendaMedica() {
         .vista-btn { padding: 7px 16px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: all 0.15s; }
         .semana-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
         .semana-tab { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1.5px solid #cbd5e1; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+        .pdf-row { page-break-inside: avoid; break-inside: avoid; }
+        .pdf-thead { display: table-header-group; }
+        @media print { .pdf-row { page-break-inside: avoid; } }
       `}</style>
 
       {/* Header */}
@@ -8361,9 +8456,40 @@ export default function AgendaMedica() {
         {/* ── PASO 1 ── */}
         {step === 1 && (
           <div>
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Datos de la Agenda</h2>
-              <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Complete la información del profesional y configuración de la agenda.</p>
+            <div style={{ marginBottom: 20, display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Datos de la Agenda</h2>
+                <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Complete la información del profesional y configuración de la agenda.</p>
+              </div>
+            </div>
+
+            {/* Panel cargar agenda desde XML */}
+            <div className="card" style={{ padding: "16px 20px", marginBottom: 16, background: "#f0f4ff", border: "1.5px solid #c7d2fe" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                    Cargar agenda desde archivo XML
+                  </div>
+                  <div style={{ fontSize: 11, color: "#4338ca" }}>
+                    Selecciona el archivo .xml generado al descargar una agenda anterior para precargar todos sus datos.
+                  </div>
+                </div>
+                <div>
+                  <input ref={xmlInputRef} type="file" accept=".xml" style={{ display:"none" }} onChange={cargarDesdeXML} />
+                  <button
+                    className="btn-primary"
+                    disabled={xmlCargando}
+                    onClick={() => xmlInputRef.current?.click()}
+                    style={{ whiteSpace: "nowrap" }}>
+                    {xmlCargando ? "Cargando..." : "Seleccionar archivo .xml"}
+                  </button>
+                </div>
+              </div>
+              {errorXml && (
+                <div style={{ marginTop: 10, fontSize: 11, color: "#dc2626", background: "#fef2f2", padding: "7px 10px", borderRadius: 6, border: "1px solid #fca5a5" }}>
+                  ⚠ {errorXml}
+                </div>
+              )}
             </div>
             <div className="card">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -8537,10 +8663,23 @@ export default function AgendaMedica() {
                       <th style={{ background: "#0f172a", color: "#fff", padding: "10px 12px", fontSize: 11, fontWeight: 700, textAlign: "left", width: 80 }}>HORA</th>
                       {DIAS.map((dia, i) => {
                         const disponible = diasDisp.includes(dia);
+                        // Calcular la fecha real del día en la semana activa
+                        let fechaDiaStr = "";
+                        if (vistaCalendario === "semanal" && semActualObj) {
+                          const jsIdx = DIAS_JS_IDX[i];
+                          const offset = jsIdx === 0 ? 6 : jsIdx - 1;
+                          const fechaDia = addDays(semActualObj.lunes, offset);
+                          fechaDiaStr = fmtFecha(fechaDia.toISOString().slice(0, 10));
+                        }
                         return (
                           <th key={dia} className={disponible ? "cal-header" : "cal-header-blocked"}>
-                            {vistaCalendario === "semanal" ? DIAS_SHORT[i] : dia}
-                            {!disponible && <div style={{ fontSize: 9, opacity: 0.8, fontWeight: 400 }}>fuera del período</div>}
+                            {vistaCalendario === "semanal" ? (
+                              <>
+                                <div>{DIAS_SHORT[i]}</div>
+                                {fechaDiaStr && <div style={{ fontSize: 9, fontWeight: 400, opacity: 0.9, marginTop: 2 }}>{fechaDiaStr}</div>}
+                              </>
+                            ) : dia}
+                            {!disponible && <div style={{ fontSize: 9, opacity: 0.75, fontWeight: 400, marginTop: 1 }}>fuera del período</div>}
                           </th>
                         );
                       })}
@@ -8627,12 +8766,31 @@ export default function AgendaMedica() {
               <div style={{ display: "flex", gap: 10 }}>
                 <button className="btn-secondary" onClick={() => setStep(2)}>← Volver</button>
                 <button className="btn-primary" onClick={handlePrint} disabled={generandoPDF}>
-                  {generandoPDF ? "⏳ Generando..." : "⬇️ Descargar PDF"}
+                  {generandoPDF ? "⏳ Generando..." : "⬇️ Descargar PDF + XML"}
                 </button>
               </div>
             </div>
 
             <div style={{ marginBottom: 20 }}><ResumenCupos /></div>
+
+            {/* Panel descarga XML */}
+            <div className="card" style={{ padding: "14px 18px", marginBottom: 16, background: "#f0fdf4", border: "1.5px solid #86efac" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                    Guardar agenda como archivo XML
+                  </div>
+                  <div style={{ fontSize: 11, color: "#166534" }}>
+                    Descarga el archivo .xml para poder recargar esta agenda en el futuro y modificarla.
+                  </div>
+                </div>
+                <button
+                  onClick={() => descargarXML(generarXML())}
+                  style={{ background: "#fff", color: "#16a34a", border: "1.5px solid #16a34a", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  Descargar .xml
+                </button>
+              </div>
+            </div>
 
             {/* Formato PDF */}
             <div ref={pdfRef} className="card" style={{ fontFamily: "Arial, sans-serif" }}>
@@ -8695,7 +8853,7 @@ export default function AgendaMedica() {
               <div style={{ fontSize: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}>DETALLE DE AGENDA</div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
+                  <thead className="pdf-thead">
                     <tr>
                       {["SEMANA","DÍA","HORA INICIO","INTERVALO (min)","TIPO CUPO","CUPOS"].map(h => (
                         <th key={h} style={{ border:"1px solid #000", padding:"5px 6px", background:"#1d4ed8", color:"#fff", fontSize:11, textAlign:"center" }}>{h}</th>
@@ -8715,13 +8873,27 @@ export default function AgendaMedica() {
                       }).map((b,i) => {
                         const tipo = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
                         const semInfo = semanas.find(s => s.num === b.semana);
+                        // Calcular fecha real del día en esa semana
+                        let fechaDiaCelda = "";
+                        if (semInfo) {
+                          const dIdx = DIAS.indexOf(b.dia);
+                          if (dIdx !== -1) {
+                            const jsIdx = DIAS_JS_IDX[dIdx];
+                            const offset = jsIdx === 0 ? 6 : jsIdx - 1;
+                            const fechaDia = addDays(semInfo.lunes, offset);
+                            fechaDiaCelda = fmtFecha(fechaDia.toISOString().slice(0, 10));
+                          }
+                        }
                         return (
-                          <tr key={i} style={{ background: i%2===0?"#fff":"#f8fafc" }}>
+                          <tr key={i} className="pdf-row" style={{ background: i%2===0?"#fff":"#f8fafc" }}>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center", fontSize:11 }}>
                               {b.semana ? `S${b.semana}` : ""}
                               {semInfo && <div style={{ fontSize:9, color:"#64748b" }}>{fmtFecha(semInfo.lunes.toISOString().slice(0,10))}</div>}
                             </td>
-                            <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>{b.dia}</td>
+                            <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>
+                              <div>{b.dia}</div>
+                              {fechaDiaCelda && <div style={{ fontSize:9, color:"#64748b", marginTop:1 }}>{fechaDiaCelda}</div>}
+                            </td>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center", fontFamily:"monospace" }}>{b.horaInicio}</td>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>{b.intervalo}</td>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>

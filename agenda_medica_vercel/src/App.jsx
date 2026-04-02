@@ -28,7 +28,7 @@ const TIPOS_CUPO = [
   { codigo: "AC", descripcion: "AUTORIZADO CUADERNO", tipologia: "CONTROL" },
   { codigo: "PS", descripcion: "PRIVACION DE SUEÑO", tipologia: "NUEVO" },
   { codigo: "CI", descripcion: "CIRUGIA MENOR", tipologia: "NUEVO" },
-  { codigo: "MM", descripcion: "MELANOMA MULTIPLE", tipologia: "CONTROL" },
+  { codigo: "MM", descripcion: "MELANOMA LULTIPLE", tipologia: "CONTROL" },
   { codigo: "OD", descripcion: "OXIGENO DEPENDENCIA", tipologia: "CONTROL" },
   { codigo: "HM", descripcion: "HEMOFILIA", tipologia: "CONTROL" },
   { codigo: "AP", descripcion: "APS", tipologia: "NUEVO" },
@@ -134,6 +134,7 @@ const TIPOS_CUPO = [
   { codigo: "B8", descripcion: "ESTUDIO ORTODONCIA", tipologia: "NUEVO" },
   { codigo: "B9", descripcion: "TAD ORTODONCIA", tipologia: "NUEVO" },
   { codigo: "EP", descripcion: "EPOF", tipologia: "CONTROL" },
+  { codigo: "PX", descripcion: "POST OPERATORIO", tipologia: "CONTROL" },
   { codigo: "AA", descripcion: "ACCIDENTE TRANSITO", tipologia: "NUEVO" },
   { codigo: "EO", descripcion: "EMISIONES OTOACUSTICAS", tipologia: "NUEVO" },
   { codigo: "R2", descripcion: "RNLE", tipologia: "CONTROL" },
@@ -148,6 +149,7 @@ const TIPOS_CUPO = [
   { codigo: "P7", descripcion: "PERCENTIL 75", tipologia: "NUEVO" },
   { codigo: "E9", descripcion: "ECO OCULAR", tipologia: "NUEVO" },
   { codigo: "UP", descripcion: "PREQUIRURGICO", tipologia: "CONTROL" },
+  { codigo: "D1", descripcion: "DM1 PREGESTACIONAL", tipologia: "NUEVO" },
   { codigo: "ND", descripcion: "NUEVO DOCENCIA", tipologia: "NUEVO" },
   { codigo: "MI", descripcion: "PROG-33000-N", tipologia: "NUEVO" },
   { codigo: "MC", descripcion: "PROG-33000-C", tipologia: "CONTROL" },
@@ -162,9 +164,8 @@ const TIPOS_CUPO = [
   { codigo: "B4", descripcion: "CBCT UNITARIO - PROCED", tipologia: "NUEVO" },
   { codigo: "AN", descripcion: "POST ALTA NUEVO", tipologia: "NUEVO" },
   { codigo: "CB", descripcion: "CONTROL ABREVIADO", tipologia: "CONTROL" },
-  { codigo: "FR", descripcion: "RELE", tipologia: "NUEVO" },
-  { codigo: "D1", descripcion: "DM1 PREGESTACIONAL", tipologia: "NUEVO" },
-  { codigo: "PY", descripcion: "PERITONEO DIALISIS", tipologia: "CONTROL" },
+  { codigo: "PY", descripcion: "PERITONEODIALISIS", tipologia: "CONTROL" },
+  { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" }
 ];
 
 const PROFESIONALES = new Map([
@@ -7418,6 +7419,7 @@ const AGENDAS = new Map([
 ["52","HEMATOLOGIA - CONSULTA ADULTO"],
 ["69","HEMATOLOGIA - CONSULTA HEMATO-ONCOLOGICA INFANTIL"],
 ["473","HEMATOLOGIA - CONSULTA HEMOSTASIA"],
+["910","HEMATOLOGIA - CONSULTA HEMOTERAPIA Y HEMOSTASIA"],
 ["43","HEMATOLOGIA - CONSULTA INFANTIL"],
 ["899","HEMATOLOGIA - CONSULTA NO ONCOLOGICA"],
 ["633","HEMATOLOGIA - CONSULTA TPH AUTOLOGO"],
@@ -7479,7 +7481,6 @@ const AGENDAS = new Map([
 ["740","MEDICINA FAMILIAR - OTROS PROFESIONALES - CONSULTA POLIFARMACIA"],
 ["524","MEDICINA FAMILIAR - OTROS PROFESIONALES - DISPENSACION DE FARMACOS"],
 ["748","MEDICINA FAMILIAR - OTROS PROFESIONALES - UNIDAD DE MEMORIA - CONSULTORIAS"],
-["747","MEDICINA FAMILIAR - OTROS PROFESIONALES - UNIDAD DE MEMORIA - INTERVENCIONES FAMILIARES"],
 ["708","MEDICINA FAMILIAR - OTROS PROFESIONALES - VISITA DOMICILIARIA"],
 ["428","MEDICINA FISICA Y REHABILITACION - CONSULTA DOLOR CRONICO NO ONCOLOGICO"],
 ["209","MEDICINA FISICA Y REHABILITACION - CONSULTA FISIATRIA"],
@@ -7623,6 +7624,7 @@ const AGENDAS = new Map([
 ["53","MEDICINA INTERNA - CONSULTA HEMATOLOGIA"],
 ["895","MEDICINA INTERNA - CONSULTA HEMATOLOGIA NO ONCOLOGICA"],
 ["620","MEDICINA INTERNA - CONSULTA HEMODIALISIS"],
+["911","MEDICINA INTERNA - CONSULTA HEMOTERAPIA Y HEMOSTASIA"],
 ["307","MEDICINA INTERNA - CONSULTA INFECTOLOGIA"],
 ["890","MEDICINA INTERNA - CONSULTA INFECTOLOGIA UNACESS"],
 ["66","MEDICINA INTERNA - CONSULTA INMUNOLOGIA ADULTO"],
@@ -7739,7 +7741,7 @@ const AGENDAS = new Map([
 ["900","NUTRICION - OTROS PROFESIONALES - CONSULTA NANEAS"],
 ["901","NUTRICION - OTROS PROFESIONALES - CONSULTA ONCOLOGICA"],
 ["902","NUTRICION - OTROS PROFESIONALES - CONSULTA ONCOLOGICA PEDIATRICA"],
-["770","NUTRICION - OTROS PROFESIONALES - TALLER NED"],
+["909","NUTRICION - OTROS PROFESIONALES - NUTRICION ENTERAL DOMICILIARIA ADULTO - LEY RICARTE SOTO"],
 ["480","NUTRICION PEDIATRICA - CONSULTA GENERAL"],
 ["203","OBSTETRICIA - COMITE ALTO RIESGO OBSTETRICO"],
 ["204","OBSTETRICIA - COMITE OBSTETRICO"],
@@ -7833,6 +7835,7 @@ const AGENDAS = new Map([
 ["351","PEDIATRIA - CONSULTA GINECOLOGIA"],
 ["377","PEDIATRIA - CONSULTA HEMATOLOGIA"],
 ["896","PEDIATRIA - CONSULTA HEMATOLOGIA NO ONCOLOGICA"],
+["912","PEDIATRIA - CONSULTA HEMOTERAPIA Y HEMOSTASIA"],
 ["355","PEDIATRIA - CONSULTA INFANTOJUVENIL"],
 ["356","PEDIATRIA - CONSULTA INMUNOLOGIA"],
 ["761","PEDIATRIA - CONSULTA MEDICA INFECTOLOGIA UNACESS"],
@@ -7945,6 +7948,7 @@ const AGENDAS = new Map([
 ["521","TELEMEDICINA - CARDIOLOGIA"],
 ["634","TELEMEDICINA - DIABETOLOGIA"],
 ["907","TELEMEDICINA - NEFROLOGIA INTERVENCIONAL"],
+["913","TELEMEDICINA - MEDICINA FISICA Y REHABILITACION - FONOAUDIOLOGO"],
 ["616","TRASTORNOS TEMPOROMANDIBULARES Y DOLOR OROFACIAL - CONSULTA GENERAL"],
 ["409","TRASTORNOS TEMPOROMANDIBULARES Y DOLOR OROFACIAL - PROCEDIMIENTO GENERAL"],
 ["452","TRAUMATOLOGIA - CONTROL ENFERMERA"],
@@ -8009,7 +8013,7 @@ function generateTimeSlots() {
   return slots;
 }
 const TIME_SLOTS = generateTimeSlots();
-const INTERVALOS = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120];
+const INTERVALOS = [2,3,4,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120];
 
 function fmtFecha(dateStr) {
   if (!dateStr) return "";
@@ -8199,7 +8203,20 @@ export default function AgendaMedica() {
     const totalControl = items.filter(i => i.tipologia === "CONTROL").reduce((s, i) => s + i.total, 0);
     const totalReceta  = items.filter(i => i.tipologia === "RECETA").reduce((s, i) => s + i.total, 0);
     const totalGeneral = bloques.reduce((s, b) => s + b.cantidad, 0);
-    return { items, totalNuevo, totalControl, totalReceta, totalGeneral };
+
+    // Resumen por semana: { semana: { total, nuevo, control, receta } }
+    const porSemana = {};
+    bloques.forEach(b => {
+      const key = b.semana ?? 0; // 0 = sin semana (vista mensual)
+      if (!porSemana[key]) porSemana[key] = { total: 0, nuevo: 0, control: 0, receta: 0 };
+      const tip = homologarTipologia(b.tipoCupo);
+      porSemana[key].total   += b.cantidad;
+      if (tip === "NUEVO")   porSemana[key].nuevo   += b.cantidad;
+      if (tip === "CONTROL") porSemana[key].control += b.cantidad;
+      if (tip === "RECETA")  porSemana[key].receta  += b.cantidad;
+    });
+
+    return { items, totalNuevo, totalControl, totalReceta, totalGeneral, porSemana };
   }, [bloques]);
 
   // ── Helpers ────────────────────────────────────────────────────────────
@@ -8367,8 +8384,11 @@ export default function AgendaMedica() {
         Aún no hay cupos agregados.
       </div>
     );
+    const semanasSorted = Object.keys(resumenCupos.porSemana)
+      .map(Number).sort((a, b) => a - b);
     return (
       <div style={{ background: compact ? "#f8fafc" : "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: compact ? "10px 14px" : "16px 20px" }}>
+        {/* Totales globales */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>Total cupos:</span>
           <span style={{ fontWeight: 800, fontSize: 15, color: "#0f172a" }}>{resumenCupos.totalGeneral}</span>
@@ -8376,7 +8396,8 @@ export default function AgendaMedica() {
           <span style={{ background: "#dcfce7", color: "#16a34a", borderRadius: 6, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>CONTROL: {resumenCupos.totalControl}</span>
           {resumenCupos.totalReceta > 0 && <span style={{ background: "#fef9c3", color: "#854d0e", borderRadius: 6, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>RECETA: {resumenCupos.totalReceta}</span>}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {/* Detalle por tipo de cupo */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: semanasSorted.length > 0 ? 10 : 0 }}>
           {resumenCupos.items.map(item => (
             <div key={item.codigo} style={{ display: "flex", alignItems: "center", gap: 4, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 8px", fontSize: 11 }}>
               <span style={{ background: getColorForCodigo(item.codigo), color: "#fff", borderRadius: 3, padding: "1px 5px", fontWeight: 700 }}>{item.codigo}</span>
@@ -8386,6 +8407,36 @@ export default function AgendaMedica() {
             </div>
           ))}
         </div>
+        {/* Desglose por semana */}
+        {semanasSorted.length > 1 && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 5, borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+              Cupos por semana
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {semanasSorted.map(semNum => {
+                const s = resumenCupos.porSemana[semNum];
+                const semInfo = semanas.find(x => x.num === semNum);
+                const label = semNum === 0 ? "Sin semana" : `Sem ${semNum}`;
+                const sublabel = semInfo ? `${fmtFecha(semInfo.lunes.toISOString().slice(0,10))}` : "";
+                return (
+                  <div key={semNum} style={{ background: "#f0f4ff", border: "1px solid #c7d2fe", borderRadius: 7, padding: "5px 10px", fontSize: 11 }}>
+                    <div style={{ fontWeight: 700, color: "#1d4ed8", marginBottom: 2 }}>
+                      {label}
+                      {sublabel && <span style={{ fontWeight: 400, color: "#6366f1", marginLeft: 5, fontSize: 10 }}>{sublabel}</span>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, color: "#0f172a" }}>{s.total} cupos</span>
+                      {s.nuevo   > 0 && <span style={{ color: "#1d4ed8" }}>N:{s.nuevo}</span>}
+                      {s.control > 0 && <span style={{ color: "#16a34a" }}>C:{s.control}</span>}
+                      {s.receta  > 0 && <span style={{ color: "#854d0e" }}>R:{s.receta}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -8847,6 +8898,17 @@ export default function AgendaMedica() {
                 CONTROL: <strong>{resumenCupos.totalControl}</strong>
                 {resumenCupos.totalReceta > 0 && <>&nbsp;|&nbsp;RECETA: <strong>{resumenCupos.totalReceta}</strong></>}
                 &nbsp;— {resumenCupos.items.map(i => `${i.codigo}: ${i.total}`).join(" · ")}
+                {Object.keys(resumenCupos.porSemana).length > 1 && (
+                  <div style={{ marginTop: 6, paddingTop: 5, borderTop: "1px solid #c7d2fe" }}>
+                    <strong>Por semana:&nbsp;</strong>
+                    {Object.keys(resumenCupos.porSemana).map(Number).sort((a,b)=>a-b).map(sn => {
+                      const s = resumenCupos.porSemana[sn];
+                      const parts = [`N:${s.nuevo}`, `C:${s.control}`];
+                      if (s.receta > 0) parts.push(`R:${s.receta}`);
+                      return `Sem ${sn}: ${s.total} (${parts.join(" ")})`;
+                    }).join("  ·  ")}
+                  </div>
+                )}
               </div>
 
               {/* Grilla detalle */}

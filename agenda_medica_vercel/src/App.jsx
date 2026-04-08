@@ -532,22 +532,84 @@ ${bXml}
       }
 
       // ── DETALLE DE AGENDA ─────────────────────────────────────────────────────
-      checkPage(HEADER_H + LINE_H + 4);
+      // Filas con 2 líneas de texto (nombre+fecha): alto de fila mayor
+      const ROW_H = 10;   // alto fila de datos (acomoda 2 líneas)
+      const TW    = PW - MAR * 2;
+      // Columnas: SEMANA, DÍA, HORA INICIO, INTERVALO (min), TIPO CUPO, CUPOS
+      const TC    = [TW*0.10, TW*0.14, TW*0.09, TW*0.10, TW*0.46, TW*0.11];
+      const TH_LABELS = ["SEMANA","DÍA","HORA INICIO","INTERVALO (min)","TIPO CUPO","CUPOS"];
+
+      // Helper: color hex del chip → [r, g, b]
+      const hexToRgb = (hex) => {
+        const h = hex.replace("#","");
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      };
+
+      // Dibuja celda de dos líneas: línea1 bold + línea2 pequeña gris debajo
+      const cell2 = (x, cy, w, h, line1, line2, opts = {}) => {
+        const { fill, bold1 = true, size1 = 8, size2 = 6.5, align = "center", color1 = [30,30,30], color2 = [100,116,139] } = opts;
+        if (fill) { setFill(...fill); doc.rect(x, cy, w, h, "F"); }
+        setDraw(160, 160, 160);
+        doc.rect(x, cy, w, h, "S");
+        const cx = align === "center" ? x + w / 2 : x + 2;
+        const midY = cy + h / 2;
+        if (line2) {
+          // dos líneas centradas verticalmente
+          setFont(bold1 ? "bold" : "normal", size1);
+          setColor(...color1);
+          doc.text(String(line1 || ""), cx, midY - 0.5, { align });
+          setFont("normal", size2);
+          setColor(...color2);
+          doc.text(String(line2 || ""), cx, midY + size2 * 0.72 + 0.5, { align });
+        } else {
+          setFont(bold1 ? "bold" : "normal", size1);
+          setColor(...color1);
+          doc.text(String(line1 || ""), cx, midY + size1 * 0.18, { align });
+        }
+      };
+
+      // Dibuja chip de color + texto de descripción en la celda de tipo cupo
+      const cellChip = (x, cy, w, h, codigo, descripcion, rowFill) => {
+        if (rowFill) { setFill(...rowFill); doc.rect(x, cy, w, h, "F"); }
+        setDraw(160, 160, 160);
+        doc.rect(x, cy, w, h, "S");
+
+        const chipColor = hexToRgb(getColorForCodigo(codigo));
+        const chipW = doc.getTextWidth(codigo) + 5;
+        const chipH = 4.5;
+        const chipX = x + 3;
+        const chipY = cy + h / 2 - chipH / 2;
+
+        // Rectángulo del chip
+        setFill(...chipColor);
+        setDraw(...chipColor);
+        doc.roundedRect(chipX, chipY, chipW, chipH, 1, 1, "F");
+
+        // Texto del código dentro del chip
+        setFont("bold", 6.5);
+        setColor(255, 255, 255);
+        doc.text(codigo, chipX + chipW / 2, chipY + chipH / 2 + 0.8, { align: "center" });
+
+        // Descripción a la derecha del chip
+        setFont("normal", 7.5);
+        setColor(30, 30, 30);
+        const descX = chipX + chipW + 3;
+        const maxDescW = w - chipW - 10;
+        const descLines = doc.splitTextToSize(descripcion || "", maxDescW);
+        doc.text(descLines[0] || "", descX, cy + h / 2 + 0.8);
+      };
+
+      // Encabezado tabla detalle
+      checkPage(HEADER_H + ROW_H + 4);
       setFont("bold", 9);
       setColor(30, 30, 30);
       doc.text("DETALLE DE AGENDA", MAR, y + 4);
       y += 6;
 
-      const TW   = PW - MAR * 2;
-      // Anchos columnas: Semana, Día, Hora, Intervalo, Tipo cupo, Cupos
-      const TC   = [TW*0.10, TW*0.17, TW*0.10, TW*0.10, TW*0.42, TW*0.11];
-      const TH   = ["Semana","Día","Hora","Intervalo","Tipo cupo","Cupos"];
-
-      // Encabezado tabla detalle
       const drawTableHeader = () => {
         let tx = MAR;
-        TH.forEach((h, i) => {
-          cell(tx, y, TC[i], HEADER_H, h, { fill:[29,78,216], bold:true, size:8, align:"center", color:[255,255,255] });
+        TH_LABELS.forEach((h, i) => {
+          cell(tx, y, TC[i], HEADER_H, h, { fill:[29,78,216], bold:true, size:7.5, align:"center", color:[255,255,255] });
           tx += TC[i];
         });
         y += HEADER_H;
@@ -555,9 +617,9 @@ ${bXml}
       drawTableHeader();
 
       if (bloques.length === 0) {
-        checkPage(LINE_H + 2);
-        cell(MAR, y, TW, LINE_H, "Sin bloques agregados", { size:8, align:"center" });
-        y += LINE_H;
+        checkPage(ROW_H + 2);
+        cell(MAR, y, TW, ROW_H, "Sin bloques agregados", { size:8, align:"center" });
+        y += ROW_H;
       } else {
         const bloquesOrd = [...bloques].sort((a, b) => {
           const sA = a.semana||0, sB = b.semana||0;
@@ -568,39 +630,47 @@ ${bXml}
         });
 
         bloquesOrd.forEach((b, idx) => {
-          checkPage(LINE_H + 2);
-          // Si cambió de página redibujamos encabezado
+          checkPage(ROW_H + 2);
           if (y === MAR) drawTableHeader();
 
-          const tipo = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
-          const si   = semanas.find(s => s.num === b.semana);
-          const dIdx = DIAS.indexOf(b.dia);
-          let fechaDia = "";
+          const tipo     = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
+          const si       = semanas.find(s => s.num === b.semana);
+          const dIdx     = DIAS.indexOf(b.dia);
+          let fechaDia   = "";
           if (si && dIdx !== -1) {
-            const off = DIAS_JS_IDX[dIdx] === 0 ? 6 : DIAS_JS_IDX[dIdx] - 1;
-            fechaDia = fmtFecha(addDays(si.lunes, off).toISOString().slice(0,10));
+            const off  = DIAS_JS_IDX[dIdx] === 0 ? 6 : DIAS_JS_IDX[dIdx] - 1;
+            fechaDia   = fmtFecha(addDays(si.lunes, off).toISOString().slice(0,10));
           }
-
-          const rowFill = idx % 2 === 0 ? [255,255,255] : [248,250,252];
-          const semTxt  = b.semana
-            ? `S${b.semana}${si ? `\n${fmtFecha(si.lunes.toISOString().slice(0,10))}` : ""}`
-            : "";
-          const diaTxt  = fechaDia ? `${b.dia}\n${fechaDia}` : b.dia;
-          const tipoTxt = `[${b.tipoCupo}] ${tipo?.descripcion || ""}`;
+          const rowFill  = idx % 2 === 0 ? [255,255,255] : [248,250,252];
+          const semLine1 = b.semana ? `S${b.semana}` : "";
+          const semLine2 = si ? fmtFecha(si.lunes.toISOString().slice(0,10)) : "";
 
           let tx = MAR;
-          [
-            { v:semTxt,       align:"center" },
-            { v:diaTxt,       align:"center" },
-            { v:b.horaInicio, align:"center" },
-            { v:`${b.intervalo} min`, align:"center" },
-            { v:tipoTxt,      align:"left"   },
-            { v:String(b.cantidad), align:"center" },
-          ].forEach((col, i) => {
-            cell(tx, y, TC[i], LINE_H, col.v, { fill:rowFill, size:8, align:col.align });
-            tx += TC[i];
-          });
-          y += LINE_H;
+
+          // Col 0: SEMANA — "S1" + fecha lunes
+          cell2(tx, y, TC[0], ROW_H, semLine1, semLine2, { fill:rowFill, bold1:true });
+          tx += TC[0];
+
+          // Col 1: DÍA — nombre día + fecha específica
+          cell2(tx, y, TC[1], ROW_H, b.dia, fechaDia, { fill:rowFill, bold1:true });
+          tx += TC[1];
+
+          // Col 2: HORA INICIO — monospace bold
+          cell2(tx, y, TC[2], ROW_H, b.horaInicio, null, { fill:rowFill, bold1:true, size1:8.5 });
+          tx += TC[2];
+
+          // Col 3: INTERVALO
+          cell2(tx, y, TC[3], ROW_H, String(b.intervalo), null, { fill:rowFill, bold1:false, size1:8 });
+          tx += TC[3];
+
+          // Col 4: TIPO CUPO — chip de color + descripción
+          cellChip(tx, y, TC[4], ROW_H, b.tipoCupo, tipo?.descripcion || "", rowFill);
+          tx += TC[4];
+
+          // Col 5: CUPOS
+          cell2(tx, y, TC[5], ROW_H, String(b.cantidad), null, { fill:rowFill, bold1:true, size1:9 });
+
+          y += ROW_H;
         });
       }
 

@@ -533,7 +533,7 @@ ${bXml}
 
       // ── DETALLE DE AGENDA ─────────────────────────────────────────────────────
       // Filas con 2 líneas de texto (nombre+fecha): alto de fila mayor
-      const ROW_H = 10;   // alto fila de datos (acomoda 2 líneas)
+      const ROW_H = 13;   // alto fila de datos (acomoda 2 líneas)
       const TW    = PW - MAR * 2;
       // Columnas: SEMANA, DÍA, HORA INICIO, INTERVALO (min), TIPO CUPO, CUPOS
       const TC    = [TW*0.10, TW*0.14, TW*0.09, TW*0.10, TW*0.46, TW*0.11];
@@ -554,13 +554,15 @@ ${bXml}
         const cx = align === "center" ? x + w / 2 : x + 2;
         const midY = cy + h / 2;
         if (line2) {
-          // dos líneas centradas verticalmente
+          // dos líneas: primera en el tercio superior, segunda en el tercio inferior
+          const topY    = cy + h * 0.36;
+          const bottomY = cy + h * 0.72;
           setFont(bold1 ? "bold" : "normal", size1);
           setColor(...color1);
-          doc.text(String(line1 || ""), cx, midY - 0.5, { align });
+          doc.text(String(line1 || ""), cx, topY, { align });
           setFont("normal", size2);
           setColor(...color2);
-          doc.text(String(line2 || ""), cx, midY + size2 * 0.72 + 0.5, { align });
+          doc.text(String(line2 || ""), cx, bottomY, { align });
         } else {
           setFont(bold1 ? "bold" : "normal", size1);
           setColor(...color1);

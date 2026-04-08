@@ -8396,13 +8396,19 @@ ${bXml}
       });
     }
 
-    // Elemento completamente aislado del árbol React (no hereda estilos)
+    // Elemento aislado: dentro de un wrapper con overflow:hidden para que
+    // html2canvas lo vea en el DOM pero no sea visible para el usuario.
+    const pdfWrapper = document.createElement("div");
+    pdfWrapper.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;";
+
     const pdfEl = document.createElement("div");
     pdfEl.style.cssText = [
-      "position:fixed","top:-9999px","left:-9999px","width:277mm",
+      "position:absolute","top:0","left:0","width:277mm",
       "background:#fff","font-family:Arial,Helvetica,sans-serif",
-      "font-size:12px","color:#000","padding:0","margin:0",
+      "font-size:12px","color:#000","padding:8px","margin:0",
+      "box-sizing:border-box",
     ].join(";");
+    pdfWrapper.appendChild(pdfEl);
 
     const bloquesOrd = [...bloques].sort((a, b) => {
       const sA = a.semana||0, sB = b.semana||0;
@@ -8538,8 +8544,10 @@ ${bXml}
         </table>
       </div>`;
 
-    // ⚠️ CRÍTICO: adjuntar al DOM ANTES de llamar a html2pdf (evita PDF en blanco)
-    document.body.appendChild(pdfEl);
+    // ⚠️ CRÍTICO: adjuntar al DOM ANTES de llamar a html2pdf.
+    // Usamos un wrapper con overflow:hidden para ocultar visualmente
+    // pero permitir que html2canvas renderice el elemento correctamente.
+    document.body.appendChild(pdfWrapper);
 
     try {
       const filename = `agenda_${cabecera.codigoAgenda || "medica"}.pdf`;
@@ -8547,11 +8555,11 @@ ${bXml}
         margin:     [8, 8, 12, 8],
         filename,
         image:      { type:"jpeg", quality:0.98 },
-        html2canvas:{ scale:2, useCORS:true, logging:false, windowWidth:1050 },
+        html2canvas:{ scale:2, useCORS:true, logging:false, windowWidth:1050, scrollX:0, scrollY:0, allowTaint:true },
         jsPDF:      { unit:"mm", format:"a4", orientation:"landscape" },
         // NO usar "avoid-all" en mode — causa páginas en blanco
         pagebreak:  { mode:["css","legacy"], avoid:["tr","thead"] },
-      }).from(pdfEl);
+      }).from(pdfEl);  // apunta al elemento con contenido, no al wrapper
 
       const pdf        = await worker.toPdf().get("pdf");
       const totalPages = pdf.internal.getNumberOfPages();
@@ -8563,7 +8571,7 @@ ${bXml}
       }
       pdf.save(filename);
     } finally {
-      document.body.removeChild(pdfEl);
+      document.body.removeChild(pdfWrapper);
       setGenerandoPDF(false);
     }
 

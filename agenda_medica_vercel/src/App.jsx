@@ -173,7 +173,7 @@ const TIPOS_CUPO = [
 ];
 
 const PROFESIONALES = new Map([
-  ["99","REEMPLAZANTE . ."],
+    ["99","REEMPLAZANTE . ."],
   ["2222","ISABEL DEL TRANSITO GARRIDO CASTRO"],
   ["3521","FABIOLA HELBIG SOTO"],
   ["3124","VIKY SUSAN MUÑOZ JAUREGUI"],
@@ -7264,7 +7264,7 @@ const PROFESIONALES = new Map([
 ]);
 
 const AGENDAS = new Map([
-  ["108","ATENCION PRIMARIA ODONTOLOGICA"],
+    ["108","ATENCION PRIMARIA ODONTOLOGICA"],
   ["292","ODONTOLOGIA GENERAL - ENDODONCIA"],
   ["333","ODONTOLOGIA GENERAL - OPERATORIA"],
   ["113","ODONTOLOGIA GENERAL - ORTODONCIA"],
@@ -7478,6 +7478,8 @@ const AGENDAS = new Map([
   ["632","HEMATOLOGIA - COMITE DE TRASPLANTE TPH"],
   ["446","HEMATOLOGIA - COMITE ONCOLOGICO HEMATOLOGIA"],
   ["52","HEMATOLOGIA - CONSULTA ADULTO"],
+  ["920","HEMATOLOGIA - CONSULTA ADULTO NO ONCOLOGICA"],
+  ["919","HEMATOLOGIA - CONSULTA ADULTO ONCOLOGICA"],
   ["69","HEMATOLOGIA - CONSULTA HEMATO-ONCOLOGICA INFANTIL"],
   ["473","HEMATOLOGIA - CONSULTA HEMOSTASIA"],
   ["910","HEMATOLOGIA - CONSULTA HEMOTERAPIA Y HEMOSTASIA"],
@@ -7534,6 +7536,7 @@ const AGENDAS = new Map([
   ["463","INMUNOLOGIA - CONSULTA MEDICA UNACESS"],
   ["753","INMUNOLOGIA - PROCEDIMIENTOS OTROS PROFESIONALES - VACUNAS"],
   ["185","MEDICINA FAMILIAR - CONSULTA MEDICA CUIDADOS PALIATIVOS"],
+  ["918","MEDICINA FAMILIAR - CONSULTA MEDICA CUIDADOS PALIATIVOS UNIVERSALES"],
   ["646","MEDICINA FAMILIAR - CONSULTA UNIDAD DE MEMORIA"],
   ["738","MEDICINA FAMILIAR - CONSULTA UNIDAD DE MEMORIA - VISITA DOMICILIARIA"],
   ["678","MEDICINA FAMILIAR - CONTACTO TELEFONICO"],
@@ -7916,6 +7919,7 @@ const AGENDAS = new Map([
   ["734","PEDIATRIA - OTROS PROFESIONALES - CONSULTA PAIG"],
   ["857","PEDIATRIA - OTROS PROFESIONALES - TALLER PAIG"],
   ["763","PEDIATRIA - OTROS PROFESIONALES - TELECONSULTA PAIG"],
+  ["921","PEDIATRIA - OTROS PROFESIONALES - TELEMEDICINA SINCRONICA"],
   ["735","PEDIATRIA - OTROS PROFESIONALES - VISITA DOMICILIARIA"],
   ["885","PEDIATRIA - PROCEDIMIENTO GENERAL"],
   ["775","PEDIATRIA - PROCEDIMIENTOS OTROS PROFESIONALES - PROCEDIMIENTOS DE ENFERMERIA"],
@@ -8122,6 +8126,23 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
+// ── Expande bloques para modo "SI (Dación de hora libre)" ────────────────────
+// Convierte 1 bloque de N cupos → N bloques de 1 cupo cada uno con hora propia
+function expandirBloquesDacion(bloques, escalonada) {
+  if (escalonada !== "SI (Dación de hora libre)") return bloques;
+  const result = [];
+  bloques.forEach(b => {
+    if (b.cantidad <= 1) { result.push(b); return; }
+    for (let i = 0; i < b.cantidad; i++) {
+      const minBase = toMinutes(b.horaInicio) + b.intervalo * i;
+      const hh = String(Math.floor(minBase / 60)).padStart(2, "0");
+      const mm = String(minBase % 60).padStart(2, "0");
+      result.push({ ...b, horaInicio: `${hh}:${mm}`, cantidad: 1 });
+    }
+  });
+  return result;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -8227,7 +8248,8 @@ export default function AgendaMedica() {
   // ── Detección de conflictos ──────────────────────────────────────────────────
   function rangoBloque(b) {
     const inicio = toMinutes(b.horaInicio);
-    return { inicio, fin: inicio + b.intervalo * (cabecera.escalonada === "SI" ? b.cantidad : 1) };
+    const esEscalonada = cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)";
+    return { inicio, fin: inicio + b.intervalo * (esEscalonada ? b.cantidad : 1) };
   }
 
   function detectarConflicto(nuevo, excluirIdx = null) {
@@ -8260,7 +8282,7 @@ export default function AgendaMedica() {
   const horasConBloques = useMemo(() => {
     const set = new Set();
     bloquesEnVista.forEach(b => {
-      if (cabecera.escalonada === "SI" && b.cantidad > 1) {
+      if ((cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)") && b.cantidad > 1) {
         const { inicio, fin } = rangoBloque(b);
         TIME_SLOTS.forEach(t => { const m = toMinutes(t); if (m >= inicio && m < fin) set.add(t); });
       } else {
@@ -8281,7 +8303,7 @@ export default function AgendaMedica() {
     return bloques.filter(b => {
       if (b.dia !== dia) return false;
       if (vistaCalendario === "semanal" && b.semana && b.semana !== semanaActual) return false;
-      if (cabecera.escalonada === "SI" && b.cantidad > 1) {
+      if ((cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)") && b.cantidad > 1) {
         const { inicio, fin } = rangoBloque(b);
         return slotMin >= inicio && slotMin < fin;
       }
@@ -8652,7 +8674,7 @@ ${bXml}
         cell(MAR, y, TW, ROW_H, "Sin bloques agregados", { size:8, align:"center" });
         y += ROW_H;
       } else {
-        const bloquesOrd = [...bloques].sort((a, b) => {
+        const bloquesOrd = expandirBloquesDacion([...bloques], cabecera.escalonada).sort((a, b) => {
           const sA = a.semana||0, sB = b.semana||0;
           if (sA !== sB) return sA - sB;
           const dA = DIAS.indexOf(a.dia), dB = DIAS.indexOf(b.dia);
@@ -9014,7 +9036,7 @@ ${bXml}
                 <div style={{ fontSize:13, fontWeight:700, color:"#475569", textTransform:"uppercase", marginBottom:16 }}>Configuración</div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:16 }}>
                   {[
-                    { key:"escalonada",        label:"Escalonada",         opts:["SI","NO"] },
+                    { key:"escalonada",        label:"Escalonada",         opts:["SI","SI (Dación de hora libre)","NO"] },
                     { key:"requiereFicha",      label:"Requiere Ficha",     opts:["SI","NO"] },
                     { key:"permiteVariasHoras", label:"Permite +1 hora/día",opts:["NO","SI"] },
                   ].map(({ key, label, opts }) => (
@@ -9328,7 +9350,7 @@ ${bXml}
                 <tbody>
                   {!bloques.length
                     ? <tr><td colSpan={6} style={{ border:"1px solid #000", padding:12, textAlign:"center", color:"#94a3b8" }}>Sin bloques agregados</td></tr>
-                    : [...bloques].sort((a,b) => {
+                    : expandirBloquesDacion([...bloques], cabecera.escalonada).sort((a,b) => {
                         const sA=a.semana||0,sB=b.semana||0; if(sA!==sB) return sA-sB;
                         const dA=DIAS.indexOf(a.dia),dB=DIAS.indexOf(b.dia); if(dA!==dB) return dA-dB;
                         return a.horaInicio.localeCompare(b.horaInicio);
@@ -9413,12 +9435,17 @@ ${bXml}
             </div>
 
             {/* Info escalonado */}
-            {cabecera.escalonada==="SI" && formBloque.cantidad>1 && (
+            {(cabecera.escalonada==="SI" || cabecera.escalonada==="SI (Dación de hora libre)") && formBloque.cantidad>1 && (
               <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:8, padding:"8px 12px", marginBottom:14, fontSize:12, color:"#1d4ed8" }}>
-                📅 Escalonado: desde {modalData.hora} hasta {(() => {
+                {cabecera.escalonada==="SI (Dación de hora libre)" ? "🔓 Dación de hora libre" : "📅 Escalonado"}: desde {modalData.hora} hasta {(() => {
                   const fin = toMinutes(modalData.hora) + formBloque.intervalo * formBloque.cantidad;
                   return `${String(Math.floor(fin/60)).padStart(2,"0")}:${String(fin%60).padStart(2,"0")}`;
                 })()}
+                {cabecera.escalonada==="SI (Dación de hora libre)" && formBloque.cantidad>1 && (
+                  <div style={{ marginTop:5, fontSize:11, opacity:0.85 }}>
+                    Se generarán {formBloque.cantidad} cupos individuales en el paso 3
+                  </div>
+                )}
               </div>
             )}
 

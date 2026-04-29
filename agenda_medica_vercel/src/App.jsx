@@ -5,13 +5,18 @@ import { useState, useMemo, useRef, useEffect } from "react";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const TIPOS_CUPO = [
-  { codigo: "PT", descripcion: "PUNCION TIROIDEA", tipologia: "NUEVO" },
+    { codigo: "IN", descripcion: "CONTROL INTERNO", tipologia: "CONTROL" },
+  { codigo: "NP", descripcion: "NO PROGRAMADO", tipologia: "NUEVO" },
+  { codigo: "OP", descripcion: "PASE OPERATORIO", tipologia: "NUEVO" },
   { codigo: "AL", descripcion: "POST ALTA", tipologia: "CONTROL" },
-  { codigo: "R", descripcion: "RECETA (C)", tipologia: "CONTROL" },
+  { codigo: "P", descripcion: "PROCEDIMIENTO", tipologia: "NUEVO" },
+  { codigo: "R", descripcion: "RECETA", tipologia: "CONTROL" },
+  { codigo: "T", descripcion: "TRATAMIENTO (N)", tipologia: "NUEVO" },
   { codigo: "DE", descripcion: "PIEZA ANTERIOR", tipologia: "NUEVO" },
+  { codigo: "PN", descripcion: "PLAN 90 DIAS NUEVO", tipologia: "NUEVO" },
   { codigo: "AO", descripcion: "ANTERO POSTERIOR", tipologia: "NUEVO" },
   { codigo: "OA", descripcion: "OPERATORIA", tipologia: "NUEVO" },
-  { codigo: "RR", descripcion: "RECETA (N)", tipologia: "NUEVO" },
+  { codigo: "RR", descripcion: "RECETA", tipologia: "NUEVO" },
   { codigo: "LH", descripcion: "LINFOMA DE HODGKING", tipologia: "CONTROL" },
   { codigo: "PV", descripcion: "PREVENTIVAS", tipologia: "NUEVO" },
   { codigo: "PD", descripcion: "PIE DIABETICO", tipologia: "NUEVO" },
@@ -59,6 +64,9 @@ const TIPOS_CUPO = [
   { codigo: "BI", descripcion: "BIOPSIA", tipologia: "NUEVO" },
   { codigo: "BE", descripcion: "BECADOS", tipologia: "CONTROL" },
   { codigo: "RU", descripcion: "CONTROLES DE URGENCIA", tipologia: "CONTROL" },
+  { codigo: "PG", descripcion: "PROG-500 CONTROLES", tipologia: "CONTROL" },
+  { codigo: "P5", descripcion: "PROG-500 NUEVO", tipologia: "NUEVO" },
+  { codigo: "L8", descripcion: "LINEA 800", tipologia: "NUEVO" },
   { codigo: "QU", descripcion: "QUEMADOS", tipologia: "NUEVO" },
   { codigo: "CL", descripcion: "COLONSCOPIA LARGA", tipologia: "NUEVO" },
   { codigo: "CC", descripcion: "COLONSCOPIA CORTA", tipologia: "NUEVO" },
@@ -70,6 +78,14 @@ const TIPOS_CUPO = [
   { codigo: "ER", descripcion: "ECO ARTERIAL RENAL", tipologia: "NUEVO" },
   { codigo: "VP", descripcion: "PVR", tipologia: "NUEVO" },
   { codigo: "TE", descripcion: "TEST DE ESFUERZO VASCULAR", tipologia: "NUEVO" },
+  { codigo: "ZZ", descripcion: "OTRO", tipologia: "NUEVO" },
+  { codigo: "RX", descripcion: "RX GENERAL", tipologia: "NUEVO" },
+  { codigo: "RI", descripcion: "RX IRA", tipologia: "NUEVO" },
+  { codigo: "RA", descripcion: "RX ERA", tipologia: "NUEVO" },
+  { codigo: "RH", descripcion: "RX HOSPITALIZADO", tipologia: "NUEVO" },
+  { codigo: "RT", descripcion: "RX TRAUMA", tipologia: "NUEVO" },
+  { codigo: "RG", descripcion: "RX URGENCIA", tipologia: "NUEVO" },
+  { codigo: "PO", descripcion: "PRIORIZADO <5 y >65", tipologia: "NUEVO" },
   { codigo: "ES", descripcion: "ESPIROMETRIA", tipologia: "NUEVO" },
   { codigo: "ME", descripcion: "METACOLINA", tipologia: "NUEVO" },
   { codigo: "TC", descripcion: "TEST DE CAMINATA", tipologia: "NUEVO" },
@@ -90,28 +106,44 @@ const TIPOS_CUPO = [
   { codigo: "PU", descripcion: "PARTICULAR", tipologia: "NUEVO" },
   { codigo: "GC", descripcion: "GASTRO CDT", tipologia: "NUEVO" },
   { codigo: "NU", descripcion: "NEUROCIRUGIA", tipologia: "NUEVO" },
+  { codigo: "VI", descripcion: "VISITA", tipologia: "NUEVO" },
+  { codigo: "FN", descripcion: "FUNCIONARIOS", tipologia: "CONTROL" },
+  { codigo: "UE", descripcion: "URGENCIA DENTAL", tipologia: "NUEVO" },
+  { codigo: "PC", descripcion: "PLAN 90 DIAS CONTROLES", tipologia: "CONTROL" },
   { codigo: "PH", descripcion: "PSIQUIATRIA HOSPITAL", tipologia: "NUEVO" },
   { codigo: "TI", descripcion: "TRAUMATOLOGIA", tipologia: "NUEVO" },
   { codigo: "OO", descripcion: "OTORRINO OFTALMOLOGIA", tipologia: "NUEVO" },
   { codigo: "CU", descripcion: "CURACION", tipologia: "NUEVO" },
+  { codigo: "CT", descripcion: "CATEGORIZACION", tipologia: "NUEVO" },
+  { codigo: "GL", descripcion: "GLAUCOMA", tipologia: "NUEVO" },
+  { codigo: "AU", descripcion: "AUDIOPHONE-C", tipologia: "CONTROL" },
   { codigo: "RY", descripcion: "TEST DE RAYNAUD", tipologia: "CONTROL" },
   { codigo: "OT", descripcion: "TEST DE OPERCULO TORAXICO", tipologia: "CONTROL" },
   { codigo: "R3", descripcion: "LEY R. SOTO-N", tipologia: "NUEVO" },
+  { codigo: "NX", descripcion: "N.LEQX", tipologia: "NUEVO" },
   { codigo: "B1", descripcion: "CBCT - PROCEDIMIENTOS", tipologia: "NUEVO" },
   { codigo: "FR", descripcion: "FINANCIAMIENTO RELE", tipologia: "NUEVO" },
+  { codigo: "CP", descripcion: "PERITAJE CONTROL", tipologia: "CONTROL" },
   { codigo: "PJ", descripcion: "PERITAJE NUEVO", tipologia: "NUEVO" },
   { codigo: "TT", descripcion: "TRATAMIENTO (C)", tipologia: "CONTROL" },
   { codigo: "P1", descripcion: "PLETISMOGRAFIA DIGITAL", tipologia: "NUEVO" },
+  { codigo: "CQ", descripcion: "CONSULTAS LEQ", tipologia: "CONTROL" },
+  { codigo: "CZ", descripcion: "CLOZAPINA", tipologia: "CONTROL" },
   { codigo: "EX", descripcion: "EXAMENES DE LABORATORIO", tipologia: "NUEVO" },
+  { codigo: "UT", descripcion: "URGENCIA OFTALMOLOGICA, N", tipologia: "NUEVO" },
   { codigo: "N1", descripcion: "NANEAS CONTROL", tipologia: "CONTROL" },
   { codigo: "B5", descripcion: "RX PANO O TELE RX - PROC", tipologia: "NUEVO" },
   { codigo: "B7", descripcion: "CBCT ORTODONCIA", tipologia: "NUEVO" },
   { codigo: "B8", descripcion: "ESTUDIO ORTODONCIA", tipologia: "NUEVO" },
   { codigo: "B9", descripcion: "TAD ORTODONCIA", tipologia: "NUEVO" },
   { codigo: "EP", descripcion: "EPOF", tipologia: "CONTROL" },
-  { codigo: "RP", descripcion: "RETROALVEOLAR – PROCEDIMI", tipologia: "NUEVO" },
+  { codigo: "PX", descripcion: "POST OPERATORIO", tipologia: "CONTROL" },
+  { codigo: "AA", descripcion: "ACCIDENTE TRANSITO", tipologia: "NUEVO" },
   { codigo: "EO", descripcion: "EMISIONES OTOACUSTICAS", tipologia: "NUEVO" },
+  { codigo: "R2", descripcion: "RNLE", tipologia: "CONTROL" },
+  { codigo: "R1", descripcion: "RNLE", tipologia: "NUEVO" },
   { codigo: "R4", descripcion: "LEY R. SOTO-C", tipologia: "CONTROL" },
+  { codigo: "CX", descripcion: "C.LEQX", tipologia: "CONTROL" },
   { codigo: "CG", descripcion: "COMGES", tipologia: "NUEVO" },
   { codigo: "B2", descripcion: "CBCT ATM - PROCEDIMIENTO", tipologia: "NUEVO" },
   { codigo: "B3", descripcion: "CBCT IMPLANTE - PROCED", tipologia: "NUEVO" },
@@ -119,11 +151,23 @@ const TIPOS_CUPO = [
   { codigo: "IF", descripcion: "INFORME", tipologia: "NUEVO" },
   { codigo: "P7", descripcion: "PERCENTIL 75", tipologia: "NUEVO" },
   { codigo: "E9", descripcion: "ECO OCULAR", tipologia: "NUEVO" },
+  { codigo: "UP", descripcion: "PREQUIRURGICO", tipologia: "CONTROL" },
   { codigo: "D1", descripcion: "DM1 PREGESTACIONAL", tipologia: "NUEVO" },
+  { codigo: "ND", descripcion: "NUEVO DOCENCIA", tipologia: "NUEVO" },
+  { codigo: "MI", descripcion: "PROG-33000-N", tipologia: "NUEVO" },
+  { codigo: "MC", descripcion: "PROG-33000-C", tipologia: "CONTROL" },
+  { codigo: "PP", descripcion: "PROCEDIMIENTO CONTROL", tipologia: "CONTROL" },
+  { codigo: "NA", descripcion: "AUDIOPHONE-A", tipologia: "NUEVO" },
   { codigo: "IO", descripcion: "CRIOTERAPIA", tipologia: "CONTROL" },
+  { codigo: "T1", descripcion: "TELE DERMATOLOGIA CONTROL", tipologia: "CONTROL" },
+  { codigo: "T2", descripcion: "TELE DERMATOLOGIA NUEVO", tipologia: "NUEVO" },
   { codigo: "TG", descripcion: "TTGO", tipologia: "NUEVO" },
+  { codigo: "MA", descripcion: "MODECATE", tipologia: "CONTROL" },
+  { codigo: "UO", descripcion: "URGENCIA OFTALMOLOGICA, C", tipologia: "CONTROL" },
   { codigo: "N2", descripcion: "NANEAS NUEVO", tipologia: "NUEVO" },
   { codigo: "B4", descripcion: "CBCT UNITARIO - PROCED", tipologia: "NUEVO" },
+  { codigo: "AN", descripcion: "POST ALTA NUEVO", tipologia: "NUEVO" },
+  { codigo: "CB", descripcion: "CONTROL ABREVIADO", tipologia: "CONTROL" },
   { codigo: "PY", descripcion: "PERITONEODIALISIS", tipologia: "CONTROL" },
   { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" }
 ];
@@ -8169,38 +8213,6 @@ export default function AgendaMedica() {
 
   const diasDisponibles = (n) => diasDisponiblesPorSemana[n] || DIAS;
 
-  // ── Resumen de cupos ─────────────────────────────────────────────────────────
-  const resumenCupos = useMemo(() => {
-    const mapa = {};
-    bloques.forEach(b => {
-      if (!mapa[b.tipoCupo]) {
-        const tipo = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
-        mapa[b.tipoCupo] = {
-          descripcion: tipo?.descripcion || b.tipoCupo,
-          tipologia: homologarTipologia(b.tipoCupo),
-          total: 0,
-        };
-      }
-      mapa[b.tipoCupo].total += b.cantidad;
-    });
-    const items        = Object.entries(mapa).map(([cod, v]) => ({ codigo: cod, ...v }));
-    const totalNuevo   = items.filter(i => i.tipologia === "NUEVO").reduce((s,i) => s+i.total, 0);
-    const totalControl = items.filter(i => i.tipologia === "CONTROL").reduce((s,i) => s+i.total, 0);
-    const totalReceta  = items.filter(i => i.tipologia === "RECETA").reduce((s,i) => s+i.total, 0);
-    const totalGeneral = bloques.reduce((s,b) => s+b.cantidad, 0);
-    const porSemana    = {};
-    bloques.forEach(b => {
-      const key = b.semana ?? 0;
-      if (!porSemana[key]) porSemana[key] = { total:0, nuevo:0, control:0, receta:0 };
-      const tip = homologarTipologia(b.tipoCupo);
-      porSemana[key].total += b.cantidad;
-      if (tip === "NUEVO")   porSemana[key].nuevo   += b.cantidad;
-      if (tip === "CONTROL") porSemana[key].control += b.cantidad;
-      if (tip === "RECETA")  porSemana[key].receta  += b.cantidad;
-    });
-    return { items, totalNuevo, totalControl, totalReceta, totalGeneral, porSemana };
-  }, [bloques]);
-
   // ── Detección de conflictos ──────────────────────────────────────────────────
   function rangoBloque(b) {
     const inicio = toMinutes(b.horaInicio);
@@ -8220,6 +8232,62 @@ export default function AgendaMedica() {
     }
     return null;
   }
+
+  // ── Verifica si un bloque cae dentro del período de fechas ──────────────────
+  // Se usa SOLO para visualización (paso 3, PDF, XML exportado).
+  // Los bloques fuera del período permanecen en el estado interno para que el
+  // usuario pueda recuperarlos si ajusta las fechas (caso: reusar agenda como base).
+  const bloqueDentroDelPeriodo = (b) => {
+    if (!cabecera.fechaInicio || !cabecera.fechaTermino) return true;
+    if (!b.semana) return true;
+    const si = semanas.find(s => s.num === b.semana);
+    if (!si) return false;
+    const dIdx = DIAS.indexOf(b.dia);
+    if (dIdx === -1) return false;
+    const offset   = DIAS_JS_IDX[dIdx] === 0 ? 6 : DIAS_JS_IDX[dIdx] - 1;
+    const fechaDia = addDays(si.lunes, offset);
+    const start    = new Date(cabecera.fechaInicio + "T00:00:00");
+    const end      = new Date(cabecera.fechaTermino + "T00:00:00");
+    return fechaDia >= start && fechaDia <= end;
+  };
+
+  // ⚠️ Definidos ANTES de resumenCupos para evitar "Cannot access before initialization"
+  const bloquesValidos   = useMemo(() => bloques.filter(bloqueDentroDelPeriodo),
+    [bloques, cabecera.fechaInicio, cabecera.fechaTermino, semanas]);
+  const bloquesExcluidos = useMemo(() => bloques.filter(b => !bloqueDentroDelPeriodo(b)),
+    [bloques, cabecera.fechaInicio, cabecera.fechaTermino, semanas]);
+
+  // ── Resumen de cupos ─────────────────────────────────────────────────────────
+  const resumenCupos = useMemo(() => {
+    const mapa = {};
+    bloquesValidos.forEach(b => {
+      if (!mapa[b.tipoCupo]) {
+        const tipo = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
+        mapa[b.tipoCupo] = {
+          descripcion: tipo?.descripcion || b.tipoCupo,
+          tipologia: homologarTipologia(b.tipoCupo),
+          total: 0,
+        };
+      }
+      mapa[b.tipoCupo].total += b.cantidad;
+    });
+    const items        = Object.entries(mapa).map(([cod, v]) => ({ codigo: cod, ...v }));
+    const totalNuevo   = items.filter(i => i.tipologia === "NUEVO").reduce((s,i) => s+i.total, 0);
+    const totalControl = items.filter(i => i.tipologia === "CONTROL").reduce((s,i) => s+i.total, 0);
+    const totalReceta  = items.filter(i => i.tipologia === "RECETA").reduce((s,i) => s+i.total, 0);
+    const totalGeneral = bloquesValidos.reduce((s,b) => s+b.cantidad, 0);
+    const porSemana    = {};
+    bloquesValidos.forEach(b => {
+      const key = b.semana ?? 0;
+      if (!porSemana[key]) porSemana[key] = { total:0, nuevo:0, control:0, receta:0 };
+      const tip = homologarTipologia(b.tipoCupo);
+      porSemana[key].total += b.cantidad;
+      if (tip === "NUEVO")   porSemana[key].nuevo   += b.cantidad;
+      if (tip === "CONTROL") porSemana[key].control += b.cantidad;
+      if (tip === "RECETA")  porSemana[key].receta  += b.cantidad;
+    });
+    return { items, totalNuevo, totalControl, totalReceta, totalGeneral, porSemana };
+  }, [bloquesValidos]);
 
   // ── Cupos filtrados en buscador ──────────────────────────────────────────────
   const cuposFiltrados = useMemo(() =>
@@ -8273,7 +8341,7 @@ export default function AgendaMedica() {
       .replace(/&/g,"&amp;").replace(/</g,"&lt;")
       .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     const c = cabecera;
-    const bXml = bloques.map(b =>
+    const bXml = bloquesValidos.map(b =>
       `    <bloque dia="${esc(b.dia)}" horaInicio="${esc(b.horaInicio)}" semana="${b.semana??""}" tipoCupo="${esc(b.tipoCupo)}" cantidad="${b.cantidad}" intervalo="${b.intervalo}"/>`
     ).join("\n");
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -8671,7 +8739,7 @@ ${bXml}
         cell(MAR, y, TW, ROW_H, "Sin bloques agregados", { size:8, align:"center" });
         y += ROW_H;
       } else {
-        const bloquesOrd = expandirBloquesDacion([...bloques], cabecera.escalonada).sort((a, b) => {
+        const bloquesOrd = expandirBloquesDacion([...bloquesValidos], cabecera.escalonada).sort((a, b) => {
           const sA = a.semana||0, sB = b.semana||0;
           if (sA !== sB) return sA - sB;
           const dA = DIAS.indexOf(a.dia), dB = DIAS.indexOf(b.dia);
@@ -9105,6 +9173,22 @@ ${bXml}
 
             <div style={{ marginBottom:12 }}><ResumenCupos compact /></div>
 
+            {/* Aviso de bloques fuera del período */}
+            {bloquesExcluidos.length > 0 && (
+              <div style={{ marginBottom:12, background:"#fef9c3", border:"1.5px solid #fbbf24", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"flex-start", gap:10 }}>
+                <span style={{ fontSize:18, flexShrink:0 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight:700, color:"#92400e", fontSize:13, marginBottom:3 }}>
+                    {bloquesExcluidos.length} {bloquesExcluidos.length === 1 ? "bloque cae" : "bloques caen"} fuera del período seleccionado
+                  </div>
+                  <div style={{ fontSize:12, color:"#78350f", lineHeight:1.5 }}>
+                    Estos cupos aparecen bloqueados en el calendario y <strong>no se incluirán</strong> en el paso 3, el PDF ni el XML exportado.
+                    Si quieres conservarlos, ajusta las fechas de inicio y término en el paso 1.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tabs semanas */}
             {vistaCalendario === "semanal" && semanas.length > 1 && (
               <div style={{ ...S.card, padding:"14px 18px", marginBottom:12 }}>
@@ -9362,9 +9446,9 @@ ${bXml}
                   </tr>
                 </thead>
                 <tbody>
-                  {!bloques.length
+                  {!bloquesValidos.length
                     ? <tr><td colSpan={6} style={{ border:"1px solid #000", padding:12, textAlign:"center", color:"#94a3b8" }}>Sin bloques agregados</td></tr>
-                    : expandirBloquesDacion([...bloques], cabecera.escalonada).sort((a,b) => {
+                    : expandirBloquesDacion([...bloquesValidos], cabecera.escalonada).sort((a,b) => {
                         const sA=a.semana||0,sB=b.semana||0; if(sA!==sB) return sA-sB;
                         const dA=DIAS.indexOf(a.dia),dB=DIAS.indexOf(b.dia); if(dA!==dB) return dA-dB;
                         return a.horaInicio.localeCompare(b.horaInicio);

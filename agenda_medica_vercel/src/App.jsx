@@ -8225,6 +8225,15 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
+// ── Tipos de cupo de un bloque ────────────────────────────────────────────────
+// Un bloque puede tener varios tipos (solo en Escalonada NO): b.tipos = [{tipoCupo, cantidad}]
+// Si no tiene, se normaliza al formato clásico de un solo tipo.
+function tiposDe(b) {
+  return b.tipos && b.tipos.length
+    ? b.tipos
+    : [{ tipoCupo: b.tipoCupo, cantidad: b.cantidad }];
+}
+
 // ── Expande bloques para modo "SI (Dación de hora libre)" ────────────────────
 // Convierte 1 bloque de N cupos → N bloques de 1 cupo cada uno con hora propia
 function expandirBloquesDacion(bloques, escalonada) {
@@ -8259,7 +8268,7 @@ export default function AgendaMedica() {
   const [semanaActual, setSemanaActual]     = useState(1);
   const [modalOpen, setModalOpen]           = useState(false);
   const [modalData, setModalData]           = useState({ dia: "", hora: "", semana: 1 });
-  const [formBloque, setFormBloque]         = useState({ tipoCupo: "", cantidad: 1, intervalo: 15 });
+  const [formBloque, setFormBloque]         = useState({ tipoCupo: "", cantidad: 1, intervalo: 15, tipos: [] });
   const [busquedaCupo, setBusquedaCupo]     = useState("");
   const [editIndex, setEditIndex]           = useState(null);
   const [conflicto, setConflicto]           = useState(null);
@@ -8314,9 +8323,10 @@ export default function AgendaMedica() {
 
   // ── Detección de conflictos ──────────────────────────────────────────────────
   function rangoBloque(b) {
+    // El rango ocupado SIEMPRE es intervalo × cantidad total, también en Escalonada NO:
+    // SISMAULE reserva ese rango completo aunque los cupos se entreguen a la misma hora.
     const inicio = toMinutes(b.horaInicio);
-    const esEscalonada = cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)";
-    return { inicio, fin: inicio + b.intervalo * (esEscalonada ? b.cantidad : 1) };
+    return { inicio, fin: inicio + b.intervalo * b.cantidad };
   }
 
   function detectarConflicto(nuevo, excluirIdx = null) {
@@ -8326,8 +8336,10 @@ export default function AgendaMedica() {
       const b = bloques[i];
       if (b.dia !== nuevo.dia || (b.semana||0) !== (nuevo.semana||0)) continue;
       const { inicio: bI, fin: bF } = rangoBloque(b);
-      if (nI < bF && nF > bI)
-        return { mensaje: `Se superpone con ${b.tipoCupo} (${b.horaInicio}) que ocupa hasta las ${String(Math.floor(bF/60)).padStart(2,"0")}:${String(bF%60).padStart(2,"0")}.` };
+      if (nI < bF && nF > bI) {
+        const codes = tiposDe(b).map(t => t.tipoCupo).join("+");
+        return { mensaje: `Se superpone con ${codes} (${b.horaInicio}) que ocupa hasta las ${String(Math.floor(bF/60)).padStart(2,"0")}:${String(bF%60).padStart(2,"0")}.` };
+      }
     }
     return null;
   }
@@ -8360,15 +8372,17 @@ export default function AgendaMedica() {
   const resumenCupos = useMemo(() => {
     const mapa = {};
     bloquesValidos.forEach(b => {
-      if (!mapa[b.tipoCupo]) {
-        const tipo = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
-        mapa[b.tipoCupo] = {
-          descripcion: tipo?.descripcion || b.tipoCupo,
-          tipologia: homologarTipologia(b.tipoCupo),
-          total: 0,
-        };
-      }
-      mapa[b.tipoCupo].total += b.cantidad;
+      tiposDe(b).forEach(t => {
+        if (!mapa[t.tipoCupo]) {
+          const tipo = TIPOS_CUPO.find(x => x.codigo === t.tipoCupo);
+          mapa[t.tipoCupo] = {
+            descripcion: tipo?.descripcion || t.tipoCupo,
+            tipologia: homologarTipologia(t.tipoCupo),
+            total: 0,
+          };
+        }
+        mapa[t.tipoCupo].total += t.cantidad;
+      });
     });
     const items        = Object.entries(mapa).map(([cod, v]) => ({ codigo: cod, ...v }));
     const totalNuevo   = items.filter(i => i.tipologia === "NUEVO").reduce((s,i) => s+i.total, 0);
@@ -8379,11 +8393,13 @@ export default function AgendaMedica() {
     bloquesValidos.forEach(b => {
       const key = b.semana ?? 0;
       if (!porSemana[key]) porSemana[key] = { total:0, nuevo:0, control:0, receta:0 };
-      const tip = homologarTipologia(b.tipoCupo);
-      porSemana[key].total += b.cantidad;
-      if (tip === "NUEVO")   porSemana[key].nuevo   += b.cantidad;
-      if (tip === "CONTROL") porSemana[key].control += b.cantidad;
-      if (tip === "RECETA")  porSemana[key].receta  += b.cantidad;
+      tiposDe(b).forEach(t => {
+        const tip = homologarTipologia(t.tipoCupo);
+        porSemana[key].total += t.cantidad;
+        if (tip === "NUEVO")   porSemana[key].nuevo   += t.cantidad;
+        if (tip === "CONTROL") porSemana[key].control += t.cantidad;
+        if (tip === "RECETA")  porSemana[key].receta  += t.cantidad;
+      });
     });
     return { items, totalNuevo, totalControl, totalReceta, totalGeneral, porSemana };
   }, [bloquesValidos]);
@@ -8405,7 +8421,7 @@ export default function AgendaMedica() {
   const horasConBloques = useMemo(() => {
     const set = new Set();
     bloquesEnVista.forEach(b => {
-      if ((cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)") && b.cantidad > 1) {
+      if (b.cantidad > 1) {
         const { inicio, fin } = rangoBloque(b);
         TIME_SLOTS.forEach(t => { const m = toMinutes(t); if (m >= inicio && m < fin) set.add(t); });
       } else {
@@ -8413,7 +8429,7 @@ export default function AgendaMedica() {
       }
     });
     return TIME_SLOTS.filter(t => set.has(t));
-  }, [bloquesEnVista, cabecera.escalonada]);
+  }, [bloquesEnVista]);
 
   const horasVisibles = useMemo(() => {
     const base  = TIME_SLOTS.filter((_, i) => i % 4 === 0);
@@ -8426,7 +8442,7 @@ export default function AgendaMedica() {
     return bloques.filter(b => {
       if (b.dia !== dia) return false;
       if (vistaCalendario === "semanal" && b.semana && b.semana !== semanaActual) return false;
-      if ((cabecera.escalonada === "SI" || cabecera.escalonada === "SI (Dación de hora libre)") && b.cantidad > 1) {
+      if (b.cantidad > 1) {
         const { inicio, fin } = rangoBloque(b);
         return slotMin >= inicio && slotMin < fin;
       }
@@ -8440,9 +8456,16 @@ export default function AgendaMedica() {
       .replace(/&/g,"&amp;").replace(/</g,"&lt;")
       .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     const c = cabecera;
-    const bXml = bloquesValidos.map(b =>
-      `    <bloque dia="${esc(b.dia)}" horaInicio="${esc(b.horaInicio)}" semana="${b.semana??""}" tipoCupo="${esc(b.tipoCupo)}" cantidad="${b.cantidad}" intervalo="${b.intervalo}"/>`
-    ).join("\n");
+    const bXml = bloquesValidos.map(b => {
+      const attrs = `dia="${esc(b.dia)}" horaInicio="${esc(b.horaInicio)}" semana="${b.semana??""}" cantidad="${b.cantidad}" intervalo="${b.intervalo}"`;
+      if (b.tipos && b.tipos.length > 1) {
+        const hijos = b.tipos.map(t =>
+          `      <tipo codigo="${esc(t.tipoCupo)}" cantidad="${t.cantidad}"/>`
+        ).join("\n");
+        return `    <bloque ${attrs}>\n${hijos}\n    </bloque>`;
+      }
+      return `    <bloque ${attrs} tipoCupo="${esc(b.tipoCupo)}"/>`;
+    }).join("\n");
     return `<?xml version="1.0" encoding="UTF-8"?>
 <agenda>
   <cabecera
@@ -8502,14 +8525,32 @@ ${bXml}
           permiteVariasHoras:     g("permiteVariasHoras")     || "NO",
           comentarioGeneral:      g("comentarioGeneral"),
         });
-        setBloques([...doc.querySelectorAll("bloque")].map(b => ({
-          dia:       b.getAttribute("dia"),
-          horaInicio:b.getAttribute("horaInicio"),
-          semana:    b.getAttribute("semana") ? Number(b.getAttribute("semana")) : null,
-          tipoCupo:  b.getAttribute("tipoCupo"),
-          cantidad:  Number(b.getAttribute("cantidad"))  || 1,
-          intervalo: Number(b.getAttribute("intervalo")) || 15,
-        })));
+        setBloques([...doc.querySelectorAll("bloque")].map(b => {
+          const base = {
+            dia:       b.getAttribute("dia"),
+            horaInicio:b.getAttribute("horaInicio"),
+            semana:    b.getAttribute("semana") ? Number(b.getAttribute("semana")) : null,
+            intervalo: Number(b.getAttribute("intervalo")) || 15,
+          };
+          const tipoEls = [...b.querySelectorAll("tipo")];
+          if (tipoEls.length) {
+            const tipos = tipoEls.map(t => ({
+              tipoCupo: t.getAttribute("codigo"),
+              cantidad: Number(t.getAttribute("cantidad")) || 1,
+            }));
+            return {
+              ...base,
+              tipos,
+              tipoCupo: tipos[0].tipoCupo,
+              cantidad: tipos.reduce((s, t) => s + t.cantidad, 0),
+            };
+          }
+          return {
+            ...base,
+            tipoCupo: b.getAttribute("tipoCupo"),
+            cantidad: Number(b.getAttribute("cantidad")) || 1,
+          };
+        }));
         setSemanaActual(1);
       } catch {
         setXmlError("Archivo .xml inválido. Asegúrate de que sea un archivo generado por esta app.");
@@ -8785,35 +8826,48 @@ ${bXml}
         }
       };
 
-      // Dibuja chip de color + texto de descripción en la celda de tipo cupo
-      const cellChip = (x, cy, w, h, codigo, descripcion, rowFill) => {
+      // Dibuja chips de color + descripción en la celda de tipo cupo.
+      // Acepta varios tipos (bloques mixtos de Escalonada NO): una línea por tipo.
+      const cellChip = (x, cy, w, h, tipos, rowFill) => {
         if (rowFill) { setFill(...rowFill); doc.rect(x, cy, w, h, "F"); }
         setDraw(160, 160, 160);
         doc.rect(x, cy, w, h, "S");
 
-        const chipColor = hexToRgb(getColorForCodigo(codigo));
-        const chipW = doc.getTextWidth(codigo) + 5;
-        const chipH = 4.5;
-        const chipX = x + 3;
-        const chipY = cy + h / 2 - chipH / 2;
+        const esMulti = tipos.length > 1;
+        const lineH   = h / tipos.length;
 
-        // Rectángulo del chip
-        setFill(...chipColor);
-        setDraw(...chipColor);
-        doc.roundedRect(chipX, chipY, chipW, chipH, 1, 1, "F");
+        tipos.forEach((t, i) => {
+          const codigo    = t.tipoCupo;
+          const tipoInfo  = TIPOS_CUPO.find(tc => tc.codigo === codigo);
+          const descBase  = tipoInfo?.descripcion || "";
+          const descTxt   = esMulti ? `${descBase} ×${t.cantidad}` : descBase;
 
-        // Texto del código dentro del chip
-        setFont("bold", 6.5);
-        setColor(255, 255, 255);
-        doc.text(codigo, chipX + chipW / 2, chipY + chipH / 2 + 0.8, { align: "center" });
+          const cyLine    = cy + lineH * i;
+          const chipColor = hexToRgb(getColorForCodigo(codigo));
+          setFont("bold", 6.5);
+          const chipW = doc.getTextWidth(codigo) + 5;
+          const chipH = 4.5;
+          const chipX = x + 3;
+          const chipY = cyLine + lineH / 2 - chipH / 2;
 
-        // Descripción a la derecha del chip
-        setFont("normal", 7.5);
-        setColor(30, 30, 30);
-        const descX = chipX + chipW + 3;
-        const maxDescW = w - chipW - 10;
-        const descLines = doc.splitTextToSize(descripcion || "", maxDescW);
-        doc.text(descLines[0] || "", descX, cy + h / 2 + 0.8);
+          // Rectángulo del chip
+          setFill(...chipColor);
+          setDraw(...chipColor);
+          doc.roundedRect(chipX, chipY, chipW, chipH, 1, 1, "F");
+
+          // Texto del código dentro del chip
+          setFont("bold", 6.5);
+          setColor(255, 255, 255);
+          doc.text(codigo, chipX + chipW / 2, chipY + chipH / 2 + 0.8, { align: "center" });
+
+          // Descripción a la derecha del chip
+          setFont("normal", 7.5);
+          setColor(30, 30, 30);
+          const descX = chipX + chipW + 3;
+          const maxDescW = w - chipW - 10;
+          const descLines = doc.splitTextToSize(descTxt, maxDescW);
+          doc.text(descLines[0] || "", descX, cyLine + lineH / 2 + 0.8);
+        });
       };
 
       // Encabezado tabla detalle
@@ -8847,10 +8901,14 @@ ${bXml}
         });
 
         bloquesOrd.forEach((b, idx) => {
-          checkPage(ROW_H + 2);
+          const tipos   = tiposDe(b);
+          const esMulti = tipos.length > 1;
+          // Alto dinámico: una línea por tipo en bloques mixtos
+          const rowH    = esMulti ? Math.max(ROW_H, 4 + tipos.length * 5.5) : ROW_H;
+
+          checkPage(rowH + 2);
           if (y === MAR) drawTableHeader();
 
-          const tipo     = TIPOS_CUPO.find(t => t.codigo === b.tipoCupo);
           const si       = semanas.find(s => s.num === b.semana);
           const dIdx     = DIAS.indexOf(b.dia);
           let fechaDia   = "";
@@ -8865,29 +8923,30 @@ ${bXml}
           let tx = MAR;
 
           // Col 0: SEMANA — "S1" + fecha lunes
-          cell2(tx, y, TC[0], ROW_H, semLine1, semLine2, { fill:rowFill, bold1:true });
+          cell2(tx, y, TC[0], rowH, semLine1, semLine2, { fill:rowFill, bold1:true });
           tx += TC[0];
 
           // Col 1: DÍA — nombre día + fecha específica
-          cell2(tx, y, TC[1], ROW_H, b.dia, fechaDia, { fill:rowFill, bold1:true });
+          cell2(tx, y, TC[1], rowH, b.dia, fechaDia, { fill:rowFill, bold1:true });
           tx += TC[1];
 
           // Col 2: HORA INICIO — monospace bold
-          cell2(tx, y, TC[2], ROW_H, b.horaInicio, null, { fill:rowFill, bold1:true, size1:8.5 });
+          cell2(tx, y, TC[2], rowH, b.horaInicio, null, { fill:rowFill, bold1:true, size1:8.5 });
           tx += TC[2];
 
           // Col 3: INTERVALO
-          cell2(tx, y, TC[3], ROW_H, String(b.intervalo), null, { fill:rowFill, bold1:false, size1:8 });
+          cell2(tx, y, TC[3], rowH, String(b.intervalo), null, { fill:rowFill, bold1:false, size1:8 });
           tx += TC[3];
 
-          // Col 4: TIPO CUPO — chip de color + descripción
-          cellChip(tx, y, TC[4], ROW_H, b.tipoCupo, tipo?.descripcion || "", rowFill);
+          // Col 4: TIPO CUPO — chip(s) de color + descripción (varios tipos si es mixto)
+          cellChip(tx, y, TC[4], rowH, tipos, rowFill);
           tx += TC[4];
 
-          // Col 5: CUPOS
-          cell2(tx, y, TC[5], ROW_H, String(b.cantidad), null, { fill:rowFill, bold1:true, size1:9 });
+          // Col 5: CUPOS — total, con desglose por tipo si es mixto
+          const desglose = esMulti ? tipos.map(t => `${t.tipoCupo}:${t.cantidad}`).join(" ") : null;
+          cell2(tx, y, TC[5], rowH, String(b.cantidad), desglose, { fill:rowFill, bold1:true, size1:9 });
 
-          y += ROW_H;
+          y += rowH;
         });
       }
 
@@ -8915,27 +8974,50 @@ ${bXml}
   // ── Acciones del modal de bloque ─────────────────────────────────────────────
   function abrirModal(dia, hora) {
     setModalData({ dia, hora, semana: semanaActual });
-    setFormBloque({ tipoCupo:"", cantidad:1, intervalo:15 });
+    setFormBloque({ tipoCupo:"", cantidad:1, intervalo:15, tipos:[] });
     setBusquedaCupo(""); setEditIndex(null); setConflicto(null); setModalOpen(true);
   }
 
   function abrirEdicion(idx) {
     const b = bloques[idx];
     setModalData({ dia:b.dia, hora:b.horaInicio, semana:b.semana || semanaActual });
-    setFormBloque({ tipoCupo:b.tipoCupo, cantidad:b.cantidad, intervalo:b.intervalo });
+    setFormBloque({
+      tipoCupo:  b.tipoCupo,
+      cantidad:  b.cantidad,
+      intervalo: b.intervalo,
+      tipos:     tiposDe(b).map(t => ({ ...t })),
+    });
     setBusquedaCupo(""); setEditIndex(idx); setConflicto(null); setModalOpen(true);
   }
 
   function guardarBloque() {
-    if (!formBloque.tipoCupo) return;
-    const nuevo = {
-      dia:       modalData.dia,
-      horaInicio:modalData.hora,
-      semana:    vistaCalendario === "semanal" ? modalData.semana : null,
-      tipoCupo:  formBloque.tipoCupo,
-      cantidad:  formBloque.cantidad,
-      intervalo: formBloque.intervalo,
-    };
+    const esNo = cabecera.escalonada === "NO";
+    let nuevo;
+    if (esNo) {
+      // Modo NO: uno o varios tipos por bloque, cantidad = suma de todos
+      const tipos = formBloque.tipos.filter(t => t.cantidad >= 1);
+      if (!tipos.length) return;
+      const total = tipos.reduce((s, t) => s + t.cantidad, 0);
+      nuevo = {
+        dia:       modalData.dia,
+        horaInicio:modalData.hora,
+        semana:    vistaCalendario === "semanal" ? modalData.semana : null,
+        tipoCupo:  tipos[0].tipoCupo,
+        cantidad:  total,
+        intervalo: formBloque.intervalo,
+        ...(tipos.length > 1 ? { tipos: tipos.map(t => ({ ...t })) } : {}),
+      };
+    } else {
+      if (!formBloque.tipoCupo) return;
+      nuevo = {
+        dia:       modalData.dia,
+        horaInicio:modalData.hora,
+        semana:    vistaCalendario === "semanal" ? modalData.semana : null,
+        tipoCupo:  formBloque.tipoCupo,
+        cantidad:  formBloque.cantidad,
+        intervalo: formBloque.intervalo,
+      };
+    }
     const c = detectarConflicto(nuevo, editIndex);
     if (c) { setConflicto(c); return; }
     setConflicto(null);
@@ -8955,7 +9037,7 @@ ${bXml}
     setBloques([
       ...s1,
       ...semanas.filter(s => s.num !== 1).flatMap(s =>
-        s1.filter(b => diasDisponibles(s.num).includes(b.dia)).map(b => ({ ...b, semana:s.num }))
+        s1.filter(b => diasDisponibles(s.num).includes(b.dia)).map(b => ({ ...b, semana:s.num, ...(b.tipos ? { tipos: b.tipos.map(t => ({ ...t })) } : {}) }))
       ),
     ]);
     setModalCopiar(false);
@@ -9361,18 +9443,21 @@ ${bXml}
                           return (
                             <td key={dia} className="cal-cell" onClick={() => abrirModal(dia, hora)}>
                               {ini.map(b => {
-                                const idx = bloques.findIndex(x => x === b);
+                                const idx   = bloques.findIndex(x => x === b);
+                                const codes = tiposDe(b).map(t => t.tipoCupo).join("+");
+                                const title = tiposDe(b).map(t => `${t.tipoCupo}×${t.cantidad}`).join("  ");
                                 return (
-                                  <div key={idx} className="chip" style={{ background:getColorForCodigo(b.tipoCupo) }}
+                                  <div key={idx} className="chip" title={title}
+                                    style={{ background:getColorForCodigo(b.tipoCupo) }}
                                     onClick={e => { e.stopPropagation(); abrirEdicion(idx); }}>
-                                    <span>{b.tipoCupo}</span>
+                                    <span>{codes}</span>
                                     <span style={{ opacity:.85, fontSize:10 }}>×{b.cantidad}</span>
                                   </div>
                                 );
                               })}
                               {cont.map((b, ci) => (
                                 <div key={ci} className="chip-cont" style={{ background:getColorForCodigo(b.tipoCupo) }}>
-                                  <span>{b.tipoCupo}</span><span style={{ fontSize:9 }}>↓</span>
+                                  <span>{tiposDe(b).map(t => t.tipoCupo).join("+")}</span><span style={{ fontSize:9 }}>↓</span>
                                 </div>
                               ))}
                             </td>
@@ -9552,9 +9637,10 @@ ${bXml}
                         const dA=DIAS.indexOf(a.dia),dB=DIAS.indexOf(b.dia); if(dA!==dB) return dA-dB;
                         return a.horaInicio.localeCompare(b.horaInicio);
                       }).map((b, i) => {
-                        const tipo = TIPOS_CUPO.find(t => t.codigo===b.tipoCupo);
-                        const si   = semanas.find(s => s.num===b.semana);
-                        let fd     = "";
+                        const tipos   = tiposDe(b);
+                        const esMulti = tipos.length > 1;
+                        const si      = semanas.find(s => s.num===b.semana);
+                        let fd        = "";
                         if (si) {
                           const dIdx = DIAS.indexOf(b.dia);
                           if (dIdx !== -1) {
@@ -9573,10 +9659,25 @@ ${bXml}
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center", fontFamily:"monospace" }}>{b.horaInicio}</td>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>{b.intervalo}</td>
                             <td style={{ border:"1px solid #d1d5db", padding:"4px 6px" }}>
-                              <span style={{ background:getColorForCodigo(b.tipoCupo), color:"#fff", borderRadius:4, padding:"2px 6px", fontSize:11, fontWeight:700 }}>{b.tipoCupo}</span>
-                              <span style={{ marginLeft:6, color:"#475569" }}>{tipo?.descripcion}</span>
+                              {tipos.map(t => {
+                                const info = TIPOS_CUPO.find(x => x.codigo === t.tipoCupo);
+                                return (
+                                  <div key={t.tipoCupo} style={{ marginBottom: esMulti ? 3 : 0 }}>
+                                    <span style={{ background:getColorForCodigo(t.tipoCupo), color:"#fff", borderRadius:4, padding:"2px 6px", fontSize:11, fontWeight:700 }}>{t.tipoCupo}</span>
+                                    <span style={{ marginLeft:6, color:"#475569" }}>{info?.descripcion}</span>
+                                    {esMulti && <span style={{ marginLeft:6, fontWeight:700, color:"#0f172a", fontSize:11 }}>×{t.cantidad}</span>}
+                                  </div>
+                                );
+                              })}
                             </td>
-                            <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>{b.cantidad}</td>
+                            <td style={{ border:"1px solid #d1d5db", padding:"4px 6px", textAlign:"center" }}>
+                              {b.cantidad}
+                              {esMulti && (
+                                <div style={{ fontSize:9, color:"#64748b", whiteSpace:"nowrap" }}>
+                                  {tipos.map(t => `${t.tipoCupo}:${t.cantidad}`).join(" ")}
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         );
                       })
@@ -9624,12 +9725,32 @@ ${bXml}
                   {INTERVALOS.map(i => <option key={i} value={i}>{i} min</option>)}
                 </select>
               </div>
-              <div>
-                <label style={S.lbl}>Cantidad de cupos</label>
-                <input type="number" min={1} max={99} style={S.inp} value={formBloque.cantidad}
-                  onChange={e => { setConflicto(null); setFormBloque(p => ({ ...p, cantidad:Number(e.target.value) })); }} />
-              </div>
+              {cabecera.escalonada === "NO" ? (
+                <div>
+                  <label style={S.lbl}>Total de cupos</label>
+                  <input style={{ ...S.inp, ...S.roFilled }} readOnly
+                    value={formBloque.tipos.reduce((s,t)=>s+t.cantidad,0) || ""}
+                    placeholder="Según tipos elegidos" />
+                </div>
+              ) : (
+                <div>
+                  <label style={S.lbl}>Cantidad de cupos</label>
+                  <input type="number" min={1} max={99} style={S.inp} value={formBloque.cantidad}
+                    onChange={e => { setConflicto(null); setFormBloque(p => ({ ...p, cantidad:Number(e.target.value) })); }} />
+                </div>
+              )}
             </div>
+
+            {/* Info rango ocupado — Escalonada NO */}
+            {cabecera.escalonada === "NO" && formBloque.tipos.reduce((s,t)=>s+t.cantidad,0) > 0 && (
+              <div style={{ background:"#fff7ed", border:"1px solid #fed7aa", borderRadius:8, padding:"8px 12px", marginBottom:14, fontSize:12, color:"#9a3412" }}>
+                ⛔ Sin escalonar: {formBloque.tipos.reduce((s,t)=>s+t.cantidad,0)} cupos a las {modalData.hora}. El rango queda ocupado hasta las {(() => {
+                  const total = formBloque.tipos.reduce((s,t)=>s+t.cantidad,0);
+                  const fin = toMinutes(modalData.hora) + formBloque.intervalo * total;
+                  return `${String(Math.floor(fin/60)).padStart(2,"0")}:${String(fin%60).padStart(2,"0")}`;
+                })()} — no se podrán agregar otros cupos dentro de ese rango.
+              </div>
+            )}
 
             {/* Info escalonado */}
             {(cabecera.escalonada==="SI" || cabecera.escalonada==="SI (Dación de hora libre)") && formBloque.cantidad>1 && (
@@ -9648,24 +9769,76 @@ ${bXml}
 
             {/* Buscador tipo de cupo */}
             <div style={{ marginBottom:20 }}>
-              <label style={S.lbl}>Tipo de cupo *</label>
+              <label style={S.lbl}>
+                {cabecera.escalonada === "NO" ? "Tipos de cupo * (puedes elegir varios)" : "Tipo de cupo *"}
+              </label>
+
+              {/* Tipos seleccionados con cantidad — solo Escalonada NO */}
+              {cabecera.escalonada === "NO" && formBloque.tipos.length > 0 && (
+                <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:10 }}>
+                  {formBloque.tipos.map(t => {
+                    const info = TIPOS_CUPO.find(x => x.codigo === t.tipoCupo);
+                    return (
+                      <div key={t.tipoCupo} style={{ display:"flex", alignItems:"center", gap:10, background:"#f0f4ff", border:"1.5px solid #c7d2fe", borderRadius:8, padding:"6px 10px" }}>
+                        <div style={{ width:32, height:24, borderRadius:5, background:getColorForCodigo(t.tipoCupo), display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                          {t.tipoCupo}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color:"#0f172a", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{info?.descripcion || t.tipoCupo}</div>
+                          <div style={{ fontSize:10, color:"#64748b" }}>{homologarTipologia(t.tipoCupo)}</div>
+                        </div>
+                        <input type="number" min={1} max={99} value={t.cantidad}
+                          style={{ ...S.inp, width:64, padding:"5px 8px", fontSize:13, textAlign:"center" }}
+                          onChange={e => {
+                            const v = Math.max(1, Number(e.target.value) || 1);
+                            setConflicto(null);
+                            setFormBloque(p => ({ ...p, tipos: p.tipos.map(x => x.tipoCupo === t.tipoCupo ? { ...x, cantidad:v } : x) }));
+                          }} />
+                        <button title="Quitar tipo"
+                          style={{ border:"none", background:"none", color:"#dc2626", fontSize:16, cursor:"pointer", padding:"0 4px", flexShrink:0 }}
+                          onClick={() => {
+                            setConflicto(null);
+                            setFormBloque(p => ({ ...p, tipos: p.tipos.filter(x => x.tipoCupo !== t.tipoCupo) }));
+                          }}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <input style={{ ...S.inp, marginBottom:8 }} placeholder="Buscar por código o nombre..."
                 value={busquedaCupo} onChange={e => setBusquedaCupo(e.target.value)} />
               <div style={{ maxHeight:180, overflowY:"auto", border:"1.5px solid #e2e8f0", borderRadius:8 }}>
-                {cuposFiltrados.slice(0,20).map(t => (
-                  <div key={t.codigo} className="cupo-opt"
-                    style={{ background:formBloque.tipoCupo===t.codigo?"#eff6ff":undefined }}
-                    onClick={() => { setConflicto(null); setFormBloque(p => ({ ...p, tipoCupo:t.codigo })); }}>
-                    <div style={{ width:32, height:24, borderRadius:5, background:getColorForCodigo(t.codigo), display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
-                      {t.codigo}
+                {cuposFiltrados.slice(0,20).map(t => {
+                  const esNo = cabecera.escalonada === "NO";
+                  const seleccionado = esNo
+                    ? formBloque.tipos.some(x => x.tipoCupo === t.codigo)
+                    : formBloque.tipoCupo === t.codigo;
+                  return (
+                    <div key={t.codigo} className="cupo-opt"
+                      style={{ background:seleccionado?"#eff6ff":undefined }}
+                      onClick={() => {
+                        setConflicto(null);
+                        if (esNo) {
+                          // Toggle: agrega con cantidad 1 o quita si ya estaba
+                          setFormBloque(p => p.tipos.some(x => x.tipoCupo === t.codigo)
+                            ? { ...p, tipos: p.tipos.filter(x => x.tipoCupo !== t.codigo) }
+                            : { ...p, tipos: [...p.tipos, { tipoCupo:t.codigo, cantidad:1 }] });
+                        } else {
+                          setFormBloque(p => ({ ...p, tipoCupo:t.codigo }));
+                        }
+                      }}>
+                      <div style={{ width:32, height:24, borderRadius:5, background:getColorForCodigo(t.codigo), display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                        {t.codigo}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:500, color:"#0f172a" }}>{t.descripcion}</div>
+                        <div style={{ fontSize:11, color:"#64748b" }}>{homologarTipologia(t.codigo)}</div>
+                      </div>
+                      {seleccionado && <span style={{ marginLeft:"auto", color:"#1d4ed8", fontSize:16 }}>✓</span>}
                     </div>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:500, color:"#0f172a" }}>{t.descripcion}</div>
-                      <div style={{ fontSize:11, color:"#64748b" }}>{homologarTipologia(t.codigo)}</div>
-                    </div>
-                    {formBloque.tipoCupo===t.codigo && <span style={{ marginLeft:"auto", color:"#1d4ed8", fontSize:16 }}>✓</span>}
-                  </div>
-                ))}
+                  );
+                })}
                 {!cuposFiltrados.length && (
                   <div style={{ padding:16, color:"#94a3b8", fontSize:13, textAlign:"center" }}>Sin resultados</div>
                 )}
@@ -9691,10 +9864,17 @@ ${bXml}
               )}
               <div style={{ display:"flex", gap:10, marginLeft:"auto" }}>
                 <button style={S.btnS} onClick={() => setModalOpen(false)}>Cancelar</button>
-                <button style={{ ...S.btnP, opacity:formBloque.tipoCupo?1:0.5 }} className="btn-p"
-                  disabled={!formBloque.tipoCupo} onClick={guardarBloque}>
-                  {editIndex!==null ? "Guardar cambios" : "Agregar bloque"}
-                </button>
+                {(() => {
+                  const habilitado = cabecera.escalonada === "NO"
+                    ? formBloque.tipos.length > 0
+                    : !!formBloque.tipoCupo;
+                  return (
+                    <button style={{ ...S.btnP, opacity:habilitado?1:0.5 }} className="btn-p"
+                      disabled={!habilitado} onClick={guardarBloque}>
+                      {editIndex!==null ? "Guardar cambios" : "Agregar bloque"}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const TIPOS_CUPO = [
-    { codigo: "PT", descripcion: "PUNCION TIROIDEA", tipologia: "NUEVO" },
+      { codigo: "PT", descripcion: "PUNCION TIROIDEA", tipologia: "NUEVO" },
   { codigo: "AL", descripcion: "POST ALTA", tipologia: "CONTROL" },
   { codigo: "R", descripcion: "RECETA (C)", tipologia: "CONTROL" },
   { codigo: "DE", descripcion: "PIEZA ANTERIOR", tipologia: "NUEVO" },
@@ -125,7 +125,8 @@ const TIPOS_CUPO = [
   { codigo: "N2", descripcion: "NANEAS NUEVO", tipologia: "NUEVO" },
   { codigo: "B4", descripcion: "CBCT UNITARIO - PROCED", tipologia: "NUEVO" },
   { codigo: "PY", descripcion: "PERITONEODIALISIS", tipologia: "CONTROL" },
-  { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" }
+  { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" },
+  { codigo: "TL", descripcion: "TELEMEDICINA", tipologia: "NUEVO" }
 ];
 
 const PROFESIONALES = new Map([

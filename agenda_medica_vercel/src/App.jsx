@@ -5,7 +5,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const TIPOS_CUPO = [
-      { codigo: "PT", descripcion: "PUNCION TIROIDEA", tipologia: "NUEVO" },
+        { codigo: "PT", descripcion: "PUNCION TIROIDEA", tipologia: "NUEVO" },
   { codigo: "AL", descripcion: "POST ALTA", tipologia: "CONTROL" },
   { codigo: "R", descripcion: "RECETA (C)", tipologia: "CONTROL" },
   { codigo: "DE", descripcion: "PIEZA ANTERIOR", tipologia: "NUEVO" },
@@ -126,7 +126,8 @@ const TIPOS_CUPO = [
   { codigo: "B4", descripcion: "CBCT UNITARIO - PROCED", tipologia: "NUEVO" },
   { codigo: "PY", descripcion: "PERITONEODIALISIS", tipologia: "CONTROL" },
   { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" },
-  { codigo: "TL", descripcion: "TELEMEDICINA", tipologia: "NUEVO" }
+  { codigo: "TL", descripcion: "TELEMEDICINA", tipologia: "NUEVO" },
+  { codigo: "GR", descripcion: "FINANCIAMIENTO GORE", tipologia: "NUEVO" }
 ];
 
 const PROFESIONALES = new Map([
@@ -8179,7 +8180,7 @@ const INTERVALOS = [2,3,4,5,6,7,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,
 const MODALIDADES = [
   "INSTITUCIONAL","HONORARIOS","CONSULTORES DE LLAMADO",
   "COMPRAS REALIZADAS AL SISTEMA","COMPRAS REALIZADAS AL EXTRA SISTEMA",
-  "VENTA DE SERVICIOS","PLAN 500","OPERATIVO","CONVENIO 33.000",
+  "VENTA DE SERVICIOS","PLAN 500","OPERATIVO","CONVENIO 33.000","RECURSOS EXTRAORDINARIOS GOBIERNO REGIONAL (GORE)",
 ];
 
 function generateTimeSlots() {

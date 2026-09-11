@@ -127,7 +127,8 @@ const TIPOS_CUPO = [
   { codigo: "PY", descripcion: "PERITONEODIALISIS", tipologia: "CONTROL" },
   { codigo: "BB", descripcion: "BOMBA DE INSULINA", tipologia: "CONTROL" },
   { codigo: "TL", descripcion: "TELEMEDICINA", tipologia: "NUEVO" },
-  { codigo: "GR", descripcion: "FINANCIAMIENTO GORE", tipologia: "NUEVO" }
+  { codigo: "GR", descripcion: "FINANCIAMIENTO GORE", tipologia: "NUEVO" },
+  { codigo: "P", descripcion: "PROCEDIMIENTO", tipologia: "NUEVO" }
 ];
 
 const PROFESIONALES = new Map([
